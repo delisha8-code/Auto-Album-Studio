@@ -51,3 +51,6 @@ Select a photo slot in the sheet preview to edit its zoom (1–3×), horizontal 
 
 ## 300 DPI JPG export (initial implementation)
 After generating sheets, select **Export 300 DPI JPG sheets** and choose an output folder. The Electron main process uses Sharp to render the original source images at the configured physical sheet dimensions and 300 DPI, with saved crop zoom/focal settings. Export writes numbered JPEG sheets, reports progress, and refuses to overwrite existing output filenames. If export fails partway through, newly created sheets from that attempt are removed. Source photos must remain accessible. This output is flattened JPG only, not PSD or PDF. Print-production color profiles, full crop parity validation, bleed marks and Windows runtime testing remain pending.
+
+### Export cancellation and safety
+During JPG export, use **Cancel export** to stop after the current rendering operation; sheets already saved are retained and reported. Before rendering, the application checks all referenced source photo files and rejects output names that already exist. Files are created exclusively to prevent accidental overwrite. If rendering or writing fails, the exporter attempts to remove files created by that failed run. Cancellation is cooperative and cannot interrupt Sharp while one sheet is being rendered. Full Windows integration testing is still pending.
