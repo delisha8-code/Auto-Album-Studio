@@ -6,7 +6,12 @@ on:
     branches: [main]
 jobs:
   test:
-    runs-on: ubuntu-latest
+    name: Node tests and Vite build
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
