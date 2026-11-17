@@ -5,3 +5,5 @@
 .photo[draggable=true]{cursor:grab}.slot[draggable=true]{cursor:grab}.slot[draggable=true]:hover{outline:2px solid #5549e8;outline-offset:-2px}.photo:active,.slot:active{cursor:grabbing}
 
 .editor-history{display:flex;gap:6px}.editor-history button{padding:6px 9px;font-size:11px}
+
+.slot-selected{outline:3px solid #5549e8;outline-offset:-3px;z-index:1}.slot img{object-fit:cover;pointer-events:none}.crop-controls{margin:12px 22px;padding:14px;background:#f7f7ff;border:1px solid #e3e0ff;border-radius:10px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;align-items:center}.crop-controls strong{grid-column:1/-1;font-size:12px}.crop-controls label{margin:0}.crop-controls input{padding:0;accent-color:#5549e8}.crop-controls button{font-size:12px}@media(max-width:900px){.crop-controls{grid-template-columns:1fr}}
