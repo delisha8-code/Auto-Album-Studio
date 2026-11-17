@@ -3,3 +3,5 @@
 .photo-pagination{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:10px 14px;font-size:11px;color:#555d6e;border-bottom:1px solid #eef0f3}.photo-pagination button{padding:6px 8px;font-size:11px}.photo img{content-visibility:auto}
 
 .photo[draggable=true]{cursor:grab}.slot[draggable=true]{cursor:grab}.slot[draggable=true]:hover{outline:2px solid #5549e8;outline-offset:-2px}.photo:active,.slot:active{cursor:grabbing}
+
+.editor-history{display:flex;gap:6px}.editor-history button{padding:6px 9px;font-size:11px}
