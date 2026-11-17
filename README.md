@@ -75,3 +75,6 @@ The manual Windows installer workflow now launches the packaged `Auto Album Stud
 
 ### PSD validation hardening
 The layered PSD writer now pads its layer information section to an even byte length and rejects non-finite DPI values and more than 100 layers before decoding photos. The regression suite includes invalid-DPI and layer-limit cases. Photoshop compatibility remains unverified until an exported file is opened, edited, and saved successfully in Photoshop.
+
+### 12×36 export acceptance test
+`tests/album-acceptance.test.cjs` creates two real PNG fixtures, lays them out in a 12×36-inch sheet, renders JPG, writes a PDF proof, and creates/structurally inspects a layered PSD. It uses 20 DPI for speed and verifies pixel dimensions, PDF MediaBox, PSD dimensions, and photo layer names. This runs through `npm test` on Windows and Ubuntu CI; a passing result is still required. Full-resolution print output and Photoshop compatibility must be checked separately.
