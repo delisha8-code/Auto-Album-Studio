@@ -31,3 +31,12 @@ test('incomplete grid rows expand to fill the page width',()=>{
  const left=slots.slice(0,3);
  assert.ok(left[2].w>left[0].w,'last row spans the unused column');
 });
+
+test('photo matching uses physical landscape spread ratio',async()=>{
+ const {matchPhotosToSlots}=await import('../src/layout.js');
+ const slots=[{x:0,y:0,w:.4,h:1},{x:.4,y:0,w:.2,h:1}];
+ const photos=[{id:'portrait',width:600,height:1200},{id:'landscape',width:1800,height:1000}];
+ const assigned=matchPhotosToSlots(photos,slots,settings);
+ assert.equal(assigned[0].photoId,'landscape');
+ assert.equal(assigned[1].photoId,'portrait');
+});
