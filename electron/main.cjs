@@ -1,5 +1,5 @@
 const {app,BrowserWindow,dialog,ipcMain,protocol}=require('electron');
-const library=require('./project-library.cjs');const renderer=require('./sheet-renderer.cjs');const pdfProof=require('./pdf-proof.cjs');const psdExport=require('./psd-export.cjs');
+const library=require('./project-library.cjs');const renderer=require('./sheet-renderer.cjs');const pdfProof=require('./pdf-proof.cjs');const psdExport=require('./psd-export.cjs');const {inspectPsd}=require('./psd-inspector.cjs');
 const path=require('node:path');const fs=require('node:fs/promises');const crypto=require('node:crypto');const sharp=require('sharp');
 protocol.registerSchemesAsPrivileged([{scheme:'albumthumb',privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
 let win;
@@ -142,6 +142,8 @@ ipcMain.handle('export:psd',async(event,project)=>{
    for(let i=0;i<project.sheets.length;i++){
     if(job.cancelled)break;
     const buffer=await psdExport.buildLayeredPsd(project.sheets[i],project.photos,project.settings);
+    const verified=inspectPsd(buffer);
+    if(verified.layerCount!==project.sheets[i].items.length)throw Error('PSD layer count validation failed');
     if(job.cancelled)break;
     const handle=await fs.open(outputs[i],'wx');written.push(outputs[i]);try{await handle.writeFile(buffer)}finally{await handle.close()}
     if(!event.sender.isDestroyed())event.sender.send('export:progress',{completed:i+1,total:project.sheets.length});
