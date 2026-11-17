@@ -39,3 +39,6 @@ The **Save to album library** action stores each album as an atomic local projec
 
 ## Import progress and cancellation
 While importing a folder, the workspace displays the number of processed photos and a cancellation control. Cancelling is cooperative: the current thumbnail finishes before the import stops. Successfully processed photos are retained. Folder discovery reports a scanning stage before the total is known. Progress is not a guarantee of constant speed.
+
+## Large photo libraries
+The photo browser shows up to 90 thumbnails per page and uses lazy image loading to reduce renderer load for 400+ photo collections. All imported photos remain in the album project and are still available to layout generation. This is pagination, not faster image decoding or parallel importing. The recursive import image-extension filter was corrected.
