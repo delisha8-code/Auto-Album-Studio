@@ -1,5 +1,5 @@
 const {app,BrowserWindow,dialog,ipcMain,protocol}=require('electron');
-const library=require('./project-library.cjs');const renderer=require('./sheet-renderer.cjs');const pdfProof=require('./pdf-proof.cjs');
+const library=require('./project-library.cjs');const renderer=require('./sheet-renderer.cjs');const pdfProof=require('./pdf-proof.cjs');const psdExport=require('./psd-export.cjs');
 const path=require('node:path');const fs=require('node:fs/promises');const crypto=require('node:crypto');const sharp=require('sharp');
 protocol.registerSchemesAsPrivileged([{scheme:'albumthumb',privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
 let win;
@@ -115,5 +115,38 @@ ipcMain.handle('export:pdf',async(event,project)=>{
    (completed,total)=>{if(!event.sender.isDestroyed())event.sender.send('export:progress',{completed,total})},
    ()=>job.cancelled);
   return {file:destination,count:result.pages};
+ }finally{exportJob=null}
+});
+
+ipcMain.handle('export:psd',async(event,project)=>{
+ if(exportJob)throw Error('An export is already running');
+ library.validateProject(project);
+ if(!project.sheets.length)throw Error('Generate album sheets before exporting');
+ const job={cancelled:false};exportJob=job;
+ try{
+  const selection=await dialog.showOpenDialog(win,{title:'Select folder for layered PSD proofs',properties:['openDirectory','createDirectory']});
+  if(selection.canceled||job.cancelled)return null;
+  const folder=selection.filePaths[0];
+  const prefix=String(project.name||'Album').replace(/[^a-z0-9 _-]/gi,'_').trim().slice(0,60)||'Album';
+  const outputs=project.sheets.map((_,i)=>path.join(folder,prefix+'-sheet-'+String(i+1).padStart(3,'0')+'.psd'));
+  const map=new Map(project.photos.map(p=>[p.id,p]));
+  for(const sheet of project.sheets)for(const item of sheet.items){
+   const photo=map.get(item.photoId);
+   if(!photo||typeof photo.path!=='string'||!path.isAbsolute(photo.path))throw Error('Missing source photo: '+item.photoId);
+   const stat=await fs.stat(photo.path).catch(()=>null);
+   if(!stat?.isFile())throw Error('Missing source photo: '+photo.name);
+  }
+  for(const dest of outputs){try{await fs.access(dest);throw Error('Export file already exists: '+path.basename(dest))}catch(e){if(e.code!=='ENOENT')throw e}}
+  const written=[];
+  try{
+   for(let i=0;i<project.sheets.length;i++){
+    if(job.cancelled)break;
+    const buffer=await psdExport.buildLayeredPsd(project.sheets[i],project.photos,project.settings);
+    if(job.cancelled)break;
+    const handle=await fs.open(outputs[i],'wx');written.push(outputs[i]);try{await handle.writeFile(buffer)}finally{await handle.close()}
+    if(!event.sender.isDestroyed())event.sender.send('export:progress',{completed:i+1,total:project.sheets.length});
+   }
+   return {folder,count:written.length,cancelled:job.cancelled};
+  }catch(e){for(const dest of written)await fs.rm(dest,{force:true}).catch(()=>{});throw e}
  }finally{exportJob=null}
 });
