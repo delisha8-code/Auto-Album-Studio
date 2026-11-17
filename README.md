@@ -54,3 +54,6 @@ After generating sheets, select **Export 300 DPI JPG sheets** and choose an outp
 
 ### Export cancellation and safety
 During JPG export, use **Cancel export** to stop after the current rendering operation; sheets already saved are retained and reported. Before rendering, the application checks all referenced source photo files and rejects output names that already exist. Files are created exclusively to prevent accidental overwrite. If rendering or writing fails, the exporter attempts to remove files created by that failed run. Cancellation is cooperative and cannot interrupt Sharp while one sheet is being rendered. Full Windows integration testing is still pending.
+
+## PDF proof export
+Choose **Export PDF proof (100 DPI)** to generate a multi-page PDF with one flattened RGB JPEG per album sheet. PDF page dimensions correspond to the physical sheet size in inches. The proof uses the original photos through the sheet renderer and includes saved crop settings, but is deliberately rendered at 100 DPI for review, **not for print production**. Export refuses to overwrite an existing PDF, reports progress and supports cooperative cancellation; cancelled or failed PDF files are removed. The app's 300 DPI JPG export remains separate. PDF viewer compatibility, Windows runtime verification and press-ready color management remain pending.
