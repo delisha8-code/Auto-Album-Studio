@@ -51,3 +51,23 @@ test('rejects invalid PSD resolution and excessive layers before image decoding'
  await assert.rejects(buildLayeredPsd(sheet,[],{width:1,height:1},{dpi:Infinity}),/proof resolution/);
  await assert.rejects(buildLayeredPsd({items:Array.from({length:101},()=>({photoId:'missing'}))},[],{width:1,height:1},{dpi:10}),/Too many PSD layers/);
 });
+
+test('PSD inspector rejects invalid layer channel counts and identifiers',async()=>{
+ const folder=await fs.mkdtemp(path.join(os.tmpdir(),'aas-psd-mutate-'));
+ try{
+  const file=path.join(folder,'photo.png');
+  await sharp({create:{width:8,height:8,channels:3,background:'#224466'}}).png().toFile(file);
+  const psd=await buildLayeredPsd({items:[{photoId:'p',slot:{x:0,y:0,w:1,h:1}}]},[{id:'p',path:file,name:'Check'}],{width:1,height:1},{dpi:8});
+  assert.equal(inspectPsd(psd).layerCount,1);
+  const layerStart=38;
+  const invalidCount=Buffer.from(psd);
+  invalidCount.writeUInt16BE(5,layerStart+18);
+  assert.throws(()=>inspectPsd(invalidCount),/Unsupported layer channel count/);
+  const invalidId=Buffer.from(psd);
+  invalidId.writeInt16BE(7,layerStart+20);
+  assert.throws(()=>inspectPsd(invalidId),/Invalid layer channel IDs/);
+  const invalidInfo=Buffer.from(psd);
+  invalidInfo.writeUInt32BE(1,34);
+  assert.throws(()=>inspectPsd(invalidInfo),/Invalid layer info size/);
+ }finally{await fs.rm(folder,{recursive:true,force:true})}
+});
