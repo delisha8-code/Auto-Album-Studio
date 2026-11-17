@@ -71,3 +71,7 @@ test('PSD inspector rejects invalid layer channel counts and identifiers',async(
   assert.throws(()=>inspectPsd(invalidInfo),/Invalid layer info size/);
  }finally{await fs.rm(folder,{recursive:true,force:true})}
 });
+
+test('empty PSD sheets are rejected with a clear message',async()=>{
+ await assert.rejects(buildLayeredPsd({items:[]},[],{width:1,height:1},{dpi:10}),/without photo layers/);
+});
