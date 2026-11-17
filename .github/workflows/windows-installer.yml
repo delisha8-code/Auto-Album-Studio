@@ -39,6 +39,24 @@ jobs:
           if (!(Test-Path "$unpacked/sharp")) { throw 'Packaged Sharp native dependency is missing' }
           if (!(Test-Path "$unpacked/@img")) { throw 'Packaged Sharp platform binaries are missing' }
           Write-Host "Verified $($installers.Count) unsigned installer(s) and native dependency folders"
+      - name: Smoke-test packaged Electron and Sharp
+        shell: pwsh
+        run: |
+          $app = 'release/win-unpacked/Auto Album Studio.exe'
+          if (!(Test-Path $app)) { throw 'Packaged application executable missing' }
+          $env:AAS_PACKAGED_SMOKE_TEST = '1'
+          $process = Start-Process -FilePath (Resolve-Path $app).Path -PassThru
+          try {
+            if (!$process.WaitForExit(45000)) {
+              Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
+              throw 'Packaged application smoke test timed out'
+            }
+            $process.Refresh()
+            if ($process.ExitCode -ne 0) { throw "Packaged application smoke test failed with exit code $($process.ExitCode)" }
+            Write-Host 'Packaged Electron startup and Sharp native processing succeeded'
+          } finally {
+            Remove-Item Env:AAS_PACKAGED_SMOKE_TEST -ErrorAction SilentlyContinue
+          }
       - name: Upload unsigned preview
         uses: actions/upload-artifact@v4
         with:
