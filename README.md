@@ -69,3 +69,6 @@ A manually triggered GitHub Actions workflow, **Build Windows installer (unsigne
 
 ### Installer verification gate
 The Windows installer workflow checks the unsigned EXE header, file size, and packaged Sharp native dependencies. PDF proof export now uses explicit byte offsets and tests cross-reference positions. Real Windows installation, Photoshop compatibility, and print accuracy remain unverified.
+
+### Packaged Windows native smoke test
+The manual Windows installer workflow now launches the packaged `Auto Album Studio.exe` with `AAS_PACKAGED_SMOKE_TEST=1`. In this mode Electron checks it is packaged, generates an 8×8 PNG using the bundled Sharp native module, reads back its dimensions, and exits with code 0 only if the check succeeds. The workflow enforces a 45-second timeout and fails on a nonzero exit. This is a **noninteractive smoke test**, not a substitute for manual album import, editing, export, and installation tests. The workflow has not been executed or confirmed passing by this commit.
