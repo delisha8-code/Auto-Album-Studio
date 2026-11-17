@@ -6,6 +6,29 @@ const patterns=[ [1,4],[4,4],[4,9],[2,4],[1,1],[3,3],[2,6],[6,6],[1,6],[3,6],[4,
 export const TEMPLATES=patterns.map(([left,right],i)=>({id:`spread-${String(i+1).padStart(2,'0')}`,name:`${left} + ${right}`,left,right,capacity:left+right}));
 function grid(n,x,y,w,h){const cols=Math.ceil(Math.sqrt(n*w/h));const rows=Math.ceil(n/cols);const slots=[];for(let i=0;i<n;i++){const col=i%cols,row=Math.floor(i/cols);slots.push({x:x+col*w/cols,y:y+row*h/rows,w:w/cols,h:h/rows})}return slots}
 export function templateSlots(template,settings){const s=validateSettings(settings);const long=Math.max(s.width,s.height),short=Math.min(s.width,s.height);const padX=s.bleed/long,padY=s.bleed/short,g=s.gutter/long;const half=(1-2*padX-g)/2;if(half<=0)throw Error('Not enough room for both pages');return [...grid(template.left,padX,padY,half,1-2*padY),...grid(template.right,padX+half+g,padY,half,1-2*padY)].map(slot=>Object.fromEntries(Object.entries(slot).map(([k,v])=>[k,Number(v.toFixed(6))])))}
+// Match photo aspect ratios to slots while keeping each sheet's photo group intact.
+// When dimensions are unavailable, preserve the original import order.
+export function matchPhotosToSlots(photos,slots){
+  if(photos.length>slots.length)throw Error('Not enough slots for photos');
+  const remaining=photos.map((photo,index)=>({photo,index}));
+  const assignments=[];
+  for(let i=0;i<photos.length;i++){
+    const slot=slots[i],slotRatio=slot.w/slot.h;
+    let best=0,bestScore=Infinity;
+    for(let j=0;j<remaining.length;j++){
+      const {photo,index}=remaining[j];
+      const width=Number(photo.width),height=Number(photo.height);
+      const known=Number.isFinite(width)&&Number.isFinite(height)&&width>0&&height>0;
+      const score=known?Math.abs(Math.log((width/height)/slotRatio)):1e6;
+      if(score<bestScore-1e-9||(Math.abs(score-bestScore)<=1e-9&&index<remaining[best].index)){
+        best=j;bestScore=score;
+      }
+    }
+    assignments.push({photoId:remaining[best].photo.id,slot});
+    remaining.splice(best,1);
+  }
+  return assignments;
+}
 export function generateAlbum(photos,settings,targetSheets=0){
   validateSettings(settings);
   if(!Array.isArray(photos))throw Error('Photos must be an array');
@@ -24,7 +47,7 @@ export function generateAlbum(photos,settings,targetSheets=0){
     const candidates=TEMPLATES.filter(t=>t.capacity>=count).sort((a,b)=>a.capacity-b.capacity||a.id.localeCompare(b.id));
     const template=candidates[idx%Math.min(3,candidates.length)];
     const slots=templateSlots(template,settings);
-    sheets.push({id:`sheet-${idx+1}`,templateId:template.id,items:photos.slice(cursor,cursor+count).map((photo,j)=>({photoId:photo.id,slot:slots[j]}))});
+    sheets.push({id:`sheet-${idx+1}`,templateId:template.id,items:matchPhotosToSlots(photos.slice(cursor,cursor+count),slots)});
     cursor+=count;
   }
   return sheets;
