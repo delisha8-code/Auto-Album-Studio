@@ -1,6 +1,13 @@
 name: Build Windows installer (unsigned preview)
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/windows-installer.yml'
+      - 'electron/**'
+      - 'package.json'
+      - 'package-lock.json'
 jobs:
   windows-installer:
     runs-on: windows-latest
