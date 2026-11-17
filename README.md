@@ -42,3 +42,6 @@ While importing a folder, the workspace displays the number of processed photos 
 
 ## Large photo libraries
 The photo browser shows up to 90 thumbnails per page and uses lazy image loading to reduce renderer load for 400+ photo collections. All imported photos remain in the album project and are still available to layout generation. This is pagination, not faster image decoding or parallel importing. The recursive import image-extension filter was corrected.
+
+## Interactive editor history
+Drag a photo onto a slot to replace or swap it. The sheet preview now includes **Undo** and **Redo** for photo-placement edits, with up to 40 undo states. History is in memory only, resets on album load/new generation, and is not persisted in saved project files. Saving an album stores the current edited sheets.
