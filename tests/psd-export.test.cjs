@@ -44,3 +44,10 @@ test('independent inspector rejects truncated PSD channel bytes',async()=>{
   assert.throws(()=>inspectPsd(psd.subarray(0,psd.length-1)),/Invalid merged image length/);
  }finally{await fs.rm(folder,{recursive:true,force:true})}
 });
+
+test('rejects invalid PSD resolution and excessive layers before image decoding',async()=>{
+ const sheet={items:[]};
+ await assert.rejects(buildLayeredPsd(sheet,[],{width:1,height:1},{dpi:NaN}),/proof resolution/);
+ await assert.rejects(buildLayeredPsd(sheet,[],{width:1,height:1},{dpi:Infinity}),/proof resolution/);
+ await assert.rejects(buildLayeredPsd({items:Array.from({length:101},()=>({photoId:'missing'}))},[],{width:1,height:1},{dpi:10}),/Too many PSD layers/);
+});
