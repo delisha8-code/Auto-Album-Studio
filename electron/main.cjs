@@ -1,4 +1,5 @@
 const {app,BrowserWindow,dialog,ipcMain,protocol}=require('electron');
+const library=require('./project-library.cjs');
 const path=require('node:path');const fs=require('node:fs/promises');const crypto=require('node:crypto');const sharp=require('sharp');
 protocol.registerSchemesAsPrivileged([{scheme:'albumthumb',privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
 let win;
@@ -15,3 +16,7 @@ let draftQueue=Promise.resolve();
 ipcMain.handle('draft:write',async(_event,project)=>{validateDraft(project);const serialized=JSON.stringify({...project,recoveredAt:new Date().toISOString()});if(Buffer.byteLength(serialized)>25*1024*1024)throw Error('Recovery draft exceeds 25 MB');const task=draftQueue.catch(()=>{}).then(async()=>{const dest=draftPath();await fs.mkdir(path.dirname(dest),{recursive:true});const temp=dest+'.tmp';await fs.writeFile(temp,serialized,'utf8');await fs.rename(temp,dest);return true});draftQueue=task;return task});
 ipcMain.handle('draft:read',async()=>{await draftQueue.catch(()=>{});let raw;try{raw=await fs.readFile(draftPath(),'utf8')}catch(e){if(e.code==='ENOENT')return null;throw e}return validateDraft(JSON.parse(raw))});
 ipcMain.handle('draft:clear',async()=>{await draftQueue.catch(()=>{});try{await fs.unlink(draftPath())}catch(e){if(e.code!=='ENOENT')throw e}return true});
+
+ipcMain.handle('library:list',()=>library.listProjects(app.getPath('userData')));
+ipcMain.handle('library:save',(_event,project,id)=>library.saveProject(app.getPath('userData'),project,id));
+ipcMain.handle('library:load',async(_event,id)=>{const project=await library.loadProject(app.getPath('userData'),id);const missingPhotos=[];for(const photo of project.photos){try{if(!photo||typeof photo.path!=='string'||!path.isAbsolute(photo.path))throw Error('Invalid source path');const stat=await fs.stat(photo.path);if(!stat.isFile())throw Error('Not a file')}catch{missingPhotos.push({id:photo?.id||null,name:photo?.name||'Unknown'})}}return {project,missingPhotos}});
