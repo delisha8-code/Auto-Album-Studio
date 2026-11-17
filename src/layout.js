@@ -15,7 +15,15 @@ function grid(n,x,y,w,h){
  }
  return slots;
 }
-export function templateSlots(template,settings,counts=null){
+// A large hero photo beside a compact stack of supporting photos.
+function heroGrid(n,x,y,w,h,heroOnRight=false){
+ if(n<3||n>6)return grid(n,x,y,w,h);
+ const heroWidth=w*0.58,smallWidth=w-heroWidth;
+ const large={x:x+(heroOnRight?smallWidth:0),y,w:heroWidth,h};
+ const small=grid(n-1,x+(heroOnRight?0:heroWidth),y,smallWidth,h);
+ return [large,...small];
+}
+export function templateSlots(template,settings,counts=null,style='grid'){
  const s=validateSettings(settings),long=Math.max(s.width,s.height),short=Math.min(s.width,s.height);
  const padX=s.bleed/long,padY=s.bleed/short,g=s.gutter/long,half=(1-2*padX-g)/2;
  if(half<=0)throw Error('Not enough room for both pages');
@@ -25,7 +33,8 @@ export function templateSlots(template,settings,counts=null){
   const n=left+right;
   return grid(n,padX,padY,1-2*padX,1-2*padY).map(roundSlot);
  }
- return [...grid(left,padX,padY,half,1-2*padY),...grid(right,padX+half+g,padY,half,1-2*padY)].map(roundSlot);
+ const make=(n,x,side)=>style==='hero'?heroGrid(n,x,padY,half,1-2*padY,side==='right'):grid(n,x,padY,half,1-2*padY);
+ return [...make(left,padX,'left'),...make(right,padX+half+g,'right')].map(roundSlot);
 }
 function roundSlot(slot){return Object.fromEntries(Object.entries(slot).map(([k,v])=>[k,Number(v.toFixed(6))]))}
 // Match photo aspect ratios to slots while keeping each sheet's photo group intact.
@@ -72,7 +81,8 @@ export function generateAlbum(photos,settings,targetSheets=0){
     // Distribute exactly the available photos, not the template's maximum capacity.
     // This avoids blank cells when a sheet contains fewer photos than its template.
     const left=count===1?1:Math.max(1,Math.min(count-1,Math.round(count*template.left/template.capacity)));
-    const slots=templateSlots(template,settings,{left,right:count-left});
+    const style=idx%3===1?'hero':'grid';
+    const slots=templateSlots(template,settings,{left,right:count-left},style);
     sheets.push({id:`sheet-${idx+1}`,templateId:template.id,items:matchPhotosToSlots(photos.slice(cursor,cursor+count),slots,settings)});
     cursor+=count;
   }
