@@ -47,6 +47,7 @@ async function buildLayeredPsd(sheet,photos,settings,{dpi=72}={}){
  const canvas=dimensions(settings,dpi);
  if(canvas.width*canvas.height>15000000)throw Error('PSD proof exceeds memory limit');
  if(!sheet||!Array.isArray(sheet.items)||!Array.isArray(photos))throw Error('Invalid PSD sheet or photo list');
+ if(sheet.items.length===0)throw Error('Cannot export a PSD without photo layers');
  if(sheet.items.length>100)throw Error('Too many PSD layers');
  const map=new Map(photos.map(p=>[p.id,p]));
  const layers=[];
