@@ -33,3 +33,6 @@ Electron context isolation and limited preload IPC are enabled. Do not open untr
 
 ## Recovery drafts
 The Electron app saves one local recovery draft in its user-data directory after a short idle period. On next startup, choose **Recover album** or **Discard recovery** before new autosaving begins. Drafts contain local file paths and album metadata, not original photographs. Use **Save project** to create a durable named `.aas.json` project file. Recovery behavior requires Windows/Electron testing; GitHub commits alone do not verify it.
+
+## Saved album library
+The **Save to album library** action stores each album as an atomic local project record under Electron user data (`album-library`). **Saved albums** reopens records, while **Export project file** still writes portable `.aas.json` files. The library uses JSON, not SQLite yet; it never copies original photographs. The saved album selector updates an existing selected album. Local Windows/Electron validation remains necessary.
