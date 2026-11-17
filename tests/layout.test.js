@@ -40,3 +40,24 @@ test('photo matching uses physical landscape spread ratio',async()=>{
  assert.equal(assigned[0].photoId,'landscape');
  assert.equal(assigned[1].photoId,'portrait');
 });
+
+test('hero layouts feature a larger photo without blank space or overlap',()=>{
+ const template=TEMPLATES.find(t=>t.left===4&&t.right===4);
+ const slots=templateSlots(template,settings,{left:4,right:4},'hero');
+ assert.equal(slots.length,8);
+ assert.ok(slots[0].w>slots[1].w);
+ assert.ok(slots[4].w>slots[5].w);
+ for(let i=0;i<slots.length;i++)for(let j=i+1;j<slots.length;j++){
+  const a=slots[i],b=slots[j];
+  const overlapX=Math.min(a.x+a.w,b.x+b.w)-Math.max(a.x,b.x);
+  const overlapY=Math.min(a.y+a.h,b.y+b.h)-Math.max(a.y,b.y);
+  assert.ok(overlapX<0.00001||overlapY<0.00001,'hero slots must not overlap');
+ }
+});
+test('multi-sheet albums alternate grid and hero compositions',()=>{
+ const photos=Array.from({length:32},(_,i)=>({id:'p'+i,width:1600,height:1000}));
+ const sheets=generateAlbum(photos,settings,4);
+ assert.equal(sheets.length,4);
+ assert.equal(sheets.flatMap(s=>s.items).length,32);
+ assert.ok(sheets[1].items.some(i=>i.slot.w>.25),'second sheet should have a large hero slot');
+});
