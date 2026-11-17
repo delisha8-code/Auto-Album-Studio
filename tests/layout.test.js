@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {TEMPLATES,PRESETS,validateSettings,sheetPixels,templateSlots,generateAlbum} from '../src/layout.js';
+const settings={width:12,height:36,bleed:.2,gutter:1};
+test('at least 15 templates',()=>assert.ok(TEMPLATES.length>=15));
+test('all specified presets',()=>assert.equal(PRESETS.length,5));
+test('12x36 at 300 DPI',()=>assert.deepEqual(sheetPixels(settings),{width:10800,height:3600}));
+test('invalid settings rejected',()=>{assert.throws(()=>validateSettings({...settings,bleed:99}));assert.throws(()=>validateSettings({...settings,gutter:-1}))});
+test('all slots inside canvas',()=>{for(const t of TEMPLATES){const slots=templateSlots(t,settings);assert.equal(slots.length,t.capacity);for(const s of slots){assert.ok(s.x>=0&&s.y>=0&&s.x+s.w<=1.000002&&s.y+s.h<=1.000002)}}});
+test('all 300 photos used exactly once',()=>{const photos=Array.from({length:300},(_,i)=>({id:`p${i}`}));const sheets=generateAlbum(photos,settings);const ids=sheets.flatMap(s=>s.items.map(i=>i.photoId));assert.equal(ids.length,300);assert.equal(new Set(ids).size,300)});
+test('deterministic output',()=>{const photos=Array.from({length:33},(_,i)=>({id:`p${i}`}));assert.deepEqual(generateAlbum(photos,settings),generateAlbum(photos,settings))});
+test('empty album',()=>assert.deepEqual(generateAlbum([],settings),[]));
