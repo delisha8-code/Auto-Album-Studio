@@ -59,7 +59,7 @@ test('PSD inspector rejects invalid layer channel counts and identifiers',async(
   await sharp({create:{width:8,height:8,channels:3,background:'#224466'}}).png().toFile(file);
   const psd=await buildLayeredPsd({items:[{photoId:'p',slot:{x:0,y:0,w:1,h:1}}]},[{id:'p',path:file,name:'Check'}],{width:1,height:1},{dpi:8});
   assert.equal(inspectPsd(psd).layerCount,1);
-  const layerStart=38;
+  const layerStart=26+4+4+4+4; // PSD header, color data, resources, layer section, layer-info size
   const invalidCount=Buffer.from(psd);
   invalidCount.writeUInt16BE(5,layerStart+18);
   assert.throws(()=>inspectPsd(invalidCount),/Unsupported layer channel count/);
@@ -67,7 +67,7 @@ test('PSD inspector rejects invalid layer channel counts and identifiers',async(
   invalidId.writeInt16BE(7,layerStart+20);
   assert.throws(()=>inspectPsd(invalidId),/Invalid layer channel IDs/);
   const invalidInfo=Buffer.from(psd);
-  invalidInfo.writeUInt32BE(1,34);
+  invalidInfo.writeUInt32BE(1,38);
   assert.throws(()=>inspectPsd(invalidInfo),/Invalid layer info size/);
  }finally{await fs.rm(folder,{recursive:true,force:true})}
 });
