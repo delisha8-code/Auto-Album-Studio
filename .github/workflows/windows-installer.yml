@@ -23,6 +23,22 @@ jobs:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
           ELECTRON_BUILDER_ALLOW_UNRESOLVED_DEPENDENCIES: 'false'
         run: npm run pack:win
+      - name: Verify installer and native image dependencies
+        shell: pwsh
+        run: |
+          $installers = @(Get-ChildItem release -Filter '*.exe' -File)
+          if ($installers.Count -lt 1) { throw 'No Windows installer was produced' }
+          foreach ($installer in $installers) {
+            if ($installer.Length -lt 1000000) { throw "Installer is unexpectedly small: $($installer.Name)" }
+            $stream = [System.IO.File]::OpenRead($installer.FullName)
+            try {
+              if ($stream.ReadByte() -ne 77 -or $stream.ReadByte() -ne 90) { throw "Invalid Windows executable: $($installer.Name)" }
+            } finally { $stream.Dispose() }
+          }
+          $unpacked = 'release/win-unpacked/resources/app.asar.unpacked/node_modules'
+          if (!(Test-Path "$unpacked/sharp")) { throw 'Packaged Sharp native dependency is missing' }
+          if (!(Test-Path "$unpacked/@img")) { throw 'Packaged Sharp platform binaries are missing' }
+          Write-Host "Verified $($installers.Count) unsigned installer(s) and native dependency folders"
       - name: Upload unsigned preview
         uses: actions/upload-artifact@v4
         with:
