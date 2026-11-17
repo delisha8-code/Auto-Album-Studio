@@ -72,3 +72,6 @@ The Windows installer workflow checks the unsigned EXE header, file size, and pa
 
 ### Packaged Windows native smoke test
 The manual Windows installer workflow now launches the packaged `Auto Album Studio.exe` with `AAS_PACKAGED_SMOKE_TEST=1`. In this mode Electron checks it is packaged, generates an 8×8 PNG using the bundled Sharp native module, reads back its dimensions, and exits with code 0 only if the check succeeds. The workflow enforces a 45-second timeout and fails on a nonzero exit. This is a **noninteractive smoke test**, not a substitute for manual album import, editing, export, and installation tests. The workflow has not been executed or confirmed passing by this commit.
+
+### PSD validation hardening
+The layered PSD writer now pads its layer information section to an even byte length and rejects non-finite DPI values and more than 100 layers before decoding photos. The regression suite includes invalid-DPI and layer-limit cases. Photoshop compatibility remains unverified until an exported file is opened, edited, and saved successfully in Photoshop.
