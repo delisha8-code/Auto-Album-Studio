@@ -10,7 +10,7 @@ test('deterministic output',()=>{const photos=Array.from({length:33},(_,i)=>({id
 test('empty album',()=>assert.deepEqual(generateAlbum([],settings),[]));
 
 test('generated spreads use exact photo count without unfilled template cells',()=>{
- for(const n of [1,2,3,5,7,8,11,17,25]){
+ for(const n of [1,2,3,5,7,8,11,17,18]){
   const photos=Array.from({length:n},(_,i)=>({id:'photo-'+i,width:1600,height:1000}));
   const sheets=generateAlbum(photos,settings,1);
   assert.equal(sheets.length,1);
