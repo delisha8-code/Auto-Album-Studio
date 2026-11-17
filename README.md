@@ -66,3 +66,6 @@ PSD proof buffers are now independently inspected before being written: header, 
 
 ## Windows installer preview (not production-ready)
 A manually triggered GitHub Actions workflow, **Build Windows installer (unsigned preview)**, now runs locked dependency installation, automated tests, the Vite renderer build, and NSIS packaging on a Windows runner. The output is uploaded as a short-lived GitHub Actions artifact, not published as a release. The installer configuration is in `package.json`, and `npm run pack:win` uses a pinned electron-builder version. This is an **unsigned installer**: Windows SmartScreen may warn, and code signing is required before general distribution. The packaging workflow must be run and its artifact installed on a Windows PC to validate native Sharp bindings, app startup, import, JPG/PDF/PSD export, project recovery, uninstall, and antivirus false positives. No installer has been built or signed by this change alone.
+
+### Installer verification gate
+The Windows installer workflow checks the unsigned EXE header, file size, and packaged Sharp native dependencies. PDF proof export now uses explicit byte offsets and tests cross-reference positions. Real Windows installation, Photoshop compatibility, and print accuracy remain unverified.
