@@ -6,6 +6,10 @@ on:
     paths:
       - '.github/workflows/windows-installer.yml'
       - 'electron/**'
+      - 'tests/**'
+      - 'src/**'
+      - 'index.html'
+      - 'vite.config.js'
       - 'package.json'
       - 'package-lock.json'
 jobs:
