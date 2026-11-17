@@ -17,7 +17,7 @@ ipcMain.handle('photos:import',async(event)=>{
  try{
   const paths=[];const errors=[];
   async function walkFolder(dir){if(job.cancelled)return;let entries;try{entries=await fs.readdir(dir,{withFileTypes:true})}catch(e){errors.push({file:dir,message:e.message});return}
-   for(const ent of entries){if(job.cancelled)return;const full=path.join(dir,ent.name);if(ent.isDirectory())await walkFolder(full);else if(ent.isFile()&&/\\.(jpe?g|png|webp|tiff?)$/i.test(ent.name))paths.push(full)}
+   for(const ent of entries){if(job.cancelled)return;const full=path.join(dir,ent.name);if(ent.isDirectory())await walkFolder(full);else if(ent.isFile()&&/\.(jpe?g|png|webp|tiff?)$/i.test(ent.name))paths.push(full)}
   }
   notify(0,0,'Scanning folders');
   for(const folder of selected.filePaths){if(job.cancelled)break;await walkFolder(folder)}
