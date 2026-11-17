@@ -45,3 +45,6 @@ The photo browser shows up to 90 thumbnails per page and uses lazy image loading
 
 ## Interactive editor history
 Drag a photo onto a slot to replace or swap it. The sheet preview now includes **Undo** and **Redo** for photo-placement edits, with up to 40 undo states. History is in memory only, resets on album load/new generation, and is not persisted in saved project files. Saving an album stores the current edited sheets.
+
+## Crop and zoom editor
+Select a photo slot in the sheet preview to edit its zoom (1–3×), horizontal focus and vertical focus (0–100%). Reset crop returns to centered 1×. Each slot stores a `crop` object in the existing version-1 JSON project format; older projects without this field use centered defaults. Crop adjustments participate in Undo/Redo. This is a thumbnail-based preview; full-resolution print export must implement matching crop geometry before output can be considered print-accurate.
