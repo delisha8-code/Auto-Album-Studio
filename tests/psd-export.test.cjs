@@ -5,6 +5,7 @@ const os=require('node:os');
 const path=require('node:path');
 const sharp=require('sharp');
 const {buildLayeredPsd,pascalName,planar}=require('../electron/psd-export.cjs');
+const {inspectPsd}=require('../electron/psd-inspector.cjs');
 test('PSD layer names are 4-byte aligned',()=>assert.equal(pascalName('Wedding Photo').length%4,0));
 test('interleaved RGBA converts to planar channels',()=>assert.deepEqual(planar(Buffer.from([1,2,3,4,5,6,7,8]),2,1).map(b=>[...b]),[[1,5],[2,6],[3,7],[4,8]]));
 test('creates layered PSD with correct header and layer count',async()=>{
@@ -24,6 +25,22 @@ test('creates layered PSD with correct header and layer count',async()=>{
   const layerInfoOffset=26+4+4+4+4;
   assert.equal(psd.readInt16BE(layerInfoOffset),1);
   assert.ok(psd.includes(Buffer.from('Test Photo')));
+  const inspected=inspectPsd(psd);
+  assert.equal(inspected.layerCount,1);
+  assert.equal(inspected.layers[0].name,'Test Photo');
+  assert.deepEqual(inspected.layers[0].channels.map(c=>c.id),[0,1,2,-1]);
  }finally{await fs.rm(folder,{recursive:true,force:true})}
 });
 test('rejects production-sized PSD requests',async()=>await assert.rejects(buildLayeredPsd({items:[]},[],{width:12,height:36},{dpi:300}),/proof resolution/));
+
+test('independent inspector rejects truncated PSD channel bytes',async()=>{
+ const folder=await fs.mkdtemp(path.join(os.tmpdir(),'aas-psd-'));
+ try{
+  const file=path.join(folder,'p.png');
+  await sharp({create:{width:8,height:8,channels:3,background:'#00ff00'}}).png().toFile(file);
+  const sheet={items:[{photoId:'p',slot:{x:0,y:0,w:1,h:1}}]};
+  const psd=await buildLayeredPsd(sheet,[{id:'p',path:file,name:'Green'}],{width:1,height:1},{dpi:8});
+  assert.equal(inspectPsd(psd).layerCount,1);
+  assert.throws(()=>inspectPsd(psd.subarray(0,psd.length-1)),/Invalid merged image length/);
+ }finally{await fs.rm(folder,{recursive:true,force:true})}
+});
