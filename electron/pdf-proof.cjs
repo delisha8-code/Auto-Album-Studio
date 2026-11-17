@@ -1,6 +1,5 @@
 const fs=require('node:fs/promises');
 const sharp=require('sharp');
-const {dimensions}=require('./sheet-renderer.cjs');
 function pdfPagePoints(settings){
  const a=Number(settings?.width),b=Number(settings?.height);
  if(!Number.isFinite(a)||!Number.isFinite(b)||a<=0||b<=0||Math.max(a,b)>200)throw Error('Invalid PDF page dimensions');
@@ -12,7 +11,7 @@ async function writeProofPdf(destination,sheets,settings,renderSheet,onProgress=
  const file=await fs.open(destination,'wx');
  let offset=0;
  const positions=[0];
- const put=async data=>{const b=Buffer.isBuffer(data)?data:Buffer.from(data,'latin1');await file.writeFile(b);offset+=b.length};
+ const put=async data=>{const b=Buffer.isBuffer(data)?data:Buffer.from(data,'latin1');let written=0;while(written<b.length){const result=await file.write(b,written,b.length-written,offset+written);if(result.bytesWritten===0)throw Error('PDF write made no progress');written+=result.bytesWritten}offset+=b.length};
  const object=async(id,body)=>{positions[id]=offset;await put(id+' 0 obj\n');await put(body);await put('\nendobj\n')};
  const n=sheets.length,first=3;
  try{
