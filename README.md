@@ -48,3 +48,6 @@ Drag a photo onto a slot to replace or swap it. The sheet preview now includes *
 
 ## Crop and zoom editor
 Select a photo slot in the sheet preview to edit its zoom (1–3×), horizontal focus and vertical focus (0–100%). Reset crop returns to centered 1×. Each slot stores a `crop` object in the existing version-1 JSON project format; older projects without this field use centered defaults. Crop adjustments participate in Undo/Redo. This is a thumbnail-based preview; full-resolution print export must implement matching crop geometry before output can be considered print-accurate.
+
+## 300 DPI JPG export (initial implementation)
+After generating sheets, select **Export 300 DPI JPG sheets** and choose an output folder. The Electron main process uses Sharp to render the original source images at the configured physical sheet dimensions and 300 DPI, with saved crop zoom/focal settings. Export writes numbered JPEG sheets, reports progress, and refuses to overwrite existing output filenames. If export fails partway through, newly created sheets from that attempt are removed. Source photos must remain accessible. This output is flattened JPG only, not PSD or PDF. Print-production color profiles, full crop parity validation, bleed marks and Windows runtime testing remain pending.
