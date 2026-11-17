@@ -47,7 +47,7 @@ function inspectPsd(buffer){
   skip(channel.size-2);
   if(at-start!==channel.size)throw Error('Channel size mismatch');
  }
- if(at!==infoEnd&&!(at+1===infoEnd&&buffer[at]===0))throw Error('Layer data size mismatch');
+ if(at>infoEnd||infoEnd-at>1||(infoEnd-at===1&&buffer[at]!==0))throw Error('Layer data size mismatch');
  at=layerEnd;
  const compression=read16();
  if(compression!==0)throw Error('Unsupported merged compression');
