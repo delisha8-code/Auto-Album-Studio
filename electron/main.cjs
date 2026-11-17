@@ -1,5 +1,5 @@
 const {app,BrowserWindow,dialog,ipcMain,protocol}=require('electron');
-const library=require('./project-library.cjs');const renderer=require('./sheet-renderer.cjs');
+const library=require('./project-library.cjs');const renderer=require('./sheet-renderer.cjs');const pdfProof=require('./pdf-proof.cjs');
 const path=require('node:path');const fs=require('node:fs/promises');const crypto=require('node:crypto');const sharp=require('sharp');
 protocol.registerSchemesAsPrivileged([{scheme:'albumthumb',privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
 let win;
@@ -90,5 +90,30 @@ ipcMain.handle('export:jpg',async(event,project)=>{
    }
    return {folder,count:written.length,cancelled:job.cancelled};
   }catch(e){for(const file of written)await fs.rm(file,{force:true}).catch(()=>{});throw e}
+ }finally{exportJob=null}
+});
+
+ipcMain.handle('export:pdf',async(event,project)=>{
+ if(exportJob)throw Error('An export is already running');
+ library.validateProject(project);
+ if(!project.sheets.length)throw Error('Generate album sheets before exporting');
+ const job={cancelled:false};exportJob=job;
+ try{
+  const chosen=await dialog.showSaveDialog(win,{title:'Save PDF album proof',defaultPath:(project.name||'Album')+'-proof.pdf',filters:[{name:'PDF Proof',extensions:['pdf']}]});
+  if(chosen.canceled||job.cancelled)return null;
+  const destination=chosen.filePath;
+  // The proof writer exclusively creates the destination; never overwrite an existing PDF.
+  const photoMap=new Map(project.photos.map(p=>[p.id,p]));
+  for(const sheet of project.sheets)for(const item of sheet.items){
+   const photo=photoMap.get(item.photoId);
+   if(!photo||typeof photo.path!=='string'||!path.isAbsolute(photo.path))throw Error('Missing source photo: '+item.photoId);
+   const stat=await fs.stat(photo.path).catch(()=>null);
+   if(!stat?.isFile())throw Error('Missing source photo: '+photo.name);
+  }
+  const result=await pdfProof.writeProofPdf(destination,project.sheets,project.settings,
+   (sheet,options)=>renderer.renderSheet(sheet,project.photos,project.settings,options),
+   (completed,total)=>{if(!event.sender.isDestroyed())event.sender.send('export:progress',{completed,total})},
+   ()=>job.cancelled);
+  return {file:destination,count:result.pages};
  }finally{exportJob=null}
 });
