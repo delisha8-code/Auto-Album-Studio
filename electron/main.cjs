@@ -85,7 +85,7 @@ ipcMain.handle('export:jpg',async(event,project)=>{
     const buffer=await renderer.renderSheet(project.sheets[i],project.photos,project.settings);
     if(job.cancelled)break;
     // Exclusive creation avoids overwriting files that appeared after preflight.
-    await fs.writeFile(outputs[i],buffer,{flag:'wx'});written.push(outputs[i]);
+    written.push(outputs[i]);await fs.writeFile(outputs[i],buffer,{flag:'wx'});
     if(!event.sender.isDestroyed())event.sender.send('export:progress',{completed:i+1,total:project.sheets.length});
    }
    return {folder,count:written.length,cancelled:job.cancelled};
