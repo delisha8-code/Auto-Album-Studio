@@ -19,6 +19,14 @@ test('PDF proof embeds one JPEG per page with correct page tree',async()=>{
   assert.match(pdf.toString('latin1'),/\/Count 2/);
   assert.equal((pdf.toString('latin1').match(/\/Subtype \/Image/g)||[]).length,2);
   assert.deepEqual(updates,[[1,2],[2,2]]);
+  const text=pdf.toString('latin1');
+  const match=/startxref\n(\d+)\n%%EOF/.exec(text);
+  assert.ok(match,'PDF cross-reference pointer exists');
+  const xrefAt=Number(match[1]);
+  assert.equal(text.slice(xrefAt,xrefAt+5),'xref\n');
+  const entries=text.slice(xrefAt).match(/^\d{10} 00000 n $/gm)||[];
+  assert.equal(entries.length,8,'all PDF objects have xref entries');
+
   await assert.rejects(writeProofPdf(dest,[{}],{width:12,height:36},async()=>jpeg),{code:'EEXIST'});
  }finally{await fs.rm(dir,{recursive:true,force:true})}
 });
