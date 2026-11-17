@@ -43,9 +43,11 @@ function layerRecord(layer){
  return Buffer.concat([rect,u16(4),channels,Buffer.from('8BIMnorm','ascii'),Buffer.from([255,0,0,0]),u32(extra.length),extra]);
 }
 async function buildLayeredPsd(sheet,photos,settings,{dpi=72}={}){
- if(dpi>100||dpi<1)throw Error('Layered PSD proof resolution must be 1–100 DPI');
+ if(!Number.isFinite(dpi)||dpi>100||dpi<1)throw Error('Layered PSD proof resolution must be 1–100 DPI');
  const canvas=dimensions(settings,dpi);
  if(canvas.width*canvas.height>15000000)throw Error('PSD proof exceeds memory limit');
+ if(!sheet||!Array.isArray(sheet.items)||!Array.isArray(photos))throw Error('Invalid PSD sheet or photo list');
+ if(sheet.items.length>100)throw Error('Too many PSD layers');
  const map=new Map(photos.map(p=>[p.id,p]));
  const layers=[];
  for(const item of sheet.items)layers.push(await makeLayer(item,map.get(item.photoId),canvas));
@@ -53,7 +55,8 @@ async function buildLayeredPsd(sheet,photos,settings,{dpi=72}={}){
  const records=Buffer.concat(layers.map(layerRecord));
  const channelData=Buffer.concat(layers.flatMap(l=>l.planes.map(p=>Buffer.concat([u16(0),p]))));
  const layerInfo=Buffer.concat([i16(layers.length),records,channelData]);
- const layerSection=Buffer.concat([u32(layerInfo.length),layerInfo,u32(0)]);
+ const paddedLayerInfo=layerInfo.length%2?Buffer.concat([layerInfo,Buffer.alloc(1)]):layerInfo;
+ const layerSection=Buffer.concat([u32(paddedLayerInfo.length),paddedLayerInfo,u32(0)]);
  const layerAndMask=Buffer.concat([u32(layerSection.length),layerSection]);
  // Merged composite uses a white background and the same cropped slot rasters.
  const composites=layers.map(l=>{
