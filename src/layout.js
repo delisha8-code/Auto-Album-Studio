@@ -6,4 +6,26 @@ const patterns=[ [1,4],[4,4],[4,9],[2,4],[1,1],[3,3],[2,6],[6,6],[1,6],[3,6],[4,
 export const TEMPLATES=patterns.map(([left,right],i)=>({id:`spread-${String(i+1).padStart(2,'0')}`,name:`${left} + ${right}`,left,right,capacity:left+right}));
 function grid(n,x,y,w,h){const cols=Math.ceil(Math.sqrt(n*w/h));const rows=Math.ceil(n/cols);const slots=[];for(let i=0;i<n;i++){const col=i%cols,row=Math.floor(i/cols);slots.push({x:x+col*w/cols,y:y+row*h/rows,w:w/cols,h:h/rows})}return slots}
 export function templateSlots(template,settings){const s=validateSettings(settings);const long=Math.max(s.width,s.height),short=Math.min(s.width,s.height);const padX=s.bleed/long,padY=s.bleed/short,g=s.gutter/long;const half=(1-2*padX-g)/2;if(half<=0)throw Error('Not enough room for both pages');return [...grid(template.left,padX,padY,half,1-2*padY),...grid(template.right,padX+half+g,padY,half,1-2*padY)].map(slot=>Object.fromEntries(Object.entries(slot).map(([k,v])=>[k,Number(v.toFixed(6))])))}
-export function generateAlbum(photos,settings,targetSheets=0){validateSettings(settings);if(!Array.isArray(photos))throw Error('Photos must be an array');if(!Number.isInteger(targetSheets)||targetSheets<0)throw Error('Invalid sheet target');if(!photos.length)return [];const sheets=[];let cursor=0;let idx=0;while(cursor<photos.length){const remaining=photos.length-cursor;const target=targetSheets?Math.ceil(remaining/Math.max(1,targetSheets-sheets.length)):Math.min(remaining,8);const ranked=[...TEMPLATES].sort((a,b)=>Math.abs(a.capacity-target)-Math.abs(b.capacity-target)||Math.abs(a.capacity-8)-Math.abs(b.capacity-8));const chosen=ranked[idx%Math.min(3,ranked.length)];const count=Math.min(remaining,chosen.capacity);const slots=templateSlots(chosen,settings);sheets.push({id:`sheet-${idx+1}`,templateId:chosen.id,items:photos.slice(cursor,cursor+count).map((photo,j)=>({photoId:photo.id,slot:slots[j]}))});cursor+=count;idx++;}return sheets}
+export function generateAlbum(photos,settings,targetSheets=0){
+  validateSettings(settings);
+  if(!Array.isArray(photos))throw Error('Photos must be an array');
+  if(!Number.isInteger(targetSheets)||targetSheets<0)throw Error('Invalid sheet target');
+  if(!photos.length){if(targetSheets)throw Error('Cannot create sheets without photos');return [];}
+  const ids=new Set();
+  for(const photo of photos){if(!photo||typeof photo.id!=='string'||!photo.id||ids.has(photo.id))throw Error('Each photo needs a unique non-empty ID');ids.add(photo.id);}
+  const maxCapacity=Math.max(...TEMPLATES.map(t=>t.capacity));
+  const minSheets=Math.ceil(photos.length/maxCapacity);
+  if(targetSheets&&(targetSheets<minSheets||targetSheets>photos.length))throw Error(`Cannot place ${photos.length} photos in exactly ${targetSheets} sheets (valid range: ${minSheets}–${photos.length})`);
+  const total=targetSheets||Math.ceil(photos.length/8);
+  const sheets=[];let cursor=0;
+  for(let idx=0;idx<total;idx++){
+    const remaining=photos.length-cursor,remainingSheets=total-idx;
+    const count=Math.min(maxCapacity,Math.ceil(remaining/remainingSheets));
+    const candidates=TEMPLATES.filter(t=>t.capacity>=count).sort((a,b)=>a.capacity-b.capacity||a.id.localeCompare(b.id));
+    const template=candidates[idx%Math.min(3,candidates.length)];
+    const slots=templateSlots(template,settings);
+    sheets.push({id:`sheet-${idx+1}`,templateId:template.id,items:photos.slice(cursor,cursor+count).map((photo,j)=>({photoId:photo.id,slot:slots[j]}))});
+    cursor+=count;
+  }
+  return sheets;
+}
