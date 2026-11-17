@@ -1,5 +1,5 @@
 const {app,BrowserWindow,dialog,ipcMain,protocol}=require('electron');
-const library=require('./project-library.cjs');
+const library=require('./project-library.cjs');const renderer=require('./sheet-renderer.cjs');
 const path=require('node:path');const fs=require('node:fs/promises');const crypto=require('node:crypto');const sharp=require('sharp');
 protocol.registerSchemesAsPrivileged([{scheme:'albumthumb',privileges:{standard:true,secure:true,supportFetchAPI:true}}]);
 let win;
@@ -55,3 +55,26 @@ ipcMain.handle('draft:clear',async()=>{await draftQueue.catch(()=>{});try{await 
 ipcMain.handle('library:list',()=>library.listProjects(app.getPath('userData')));
 ipcMain.handle('library:save',(_event,project,id)=>library.saveProject(app.getPath('userData'),project,id));
 ipcMain.handle('library:load',async(_event,id)=>{const project=await library.loadProject(app.getPath('userData'),id);const missingPhotos=[];for(const photo of project.photos){try{if(!photo||typeof photo.path!=='string'||!path.isAbsolute(photo.path))throw Error('Invalid source path');const stat=await fs.stat(photo.path);if(!stat.isFile())throw Error('Not a file')}catch{missingPhotos.push({id:photo?.id||null,name:photo?.name||'Unknown'})}}return {project,missingPhotos}});
+
+let exporting=false;
+ipcMain.handle('export:jpg',async(event,project)=>{
+ if(exporting)throw Error('An export is already running');
+ library.validateProject(project);
+ if(!project.sheets.length)throw Error('Generate album sheets before exporting');
+ const selection=await dialog.showOpenDialog(win,{title:'Select folder for 300 DPI JPG sheets',properties:['openDirectory','createDirectory']});
+ if(selection.canceled)return null;
+ const folder=selection.filePaths[0];
+ const prefix=String(project.name||'Album').replace(/[^a-z0-9 _-]/gi,'_').trim().slice(0,60)||'Album';
+ const outputs=project.sheets.map((_,i)=>path.join(folder,prefix+'-sheet-'+String(i+1).padStart(3,'0')+'.jpg'));
+ for(const dest of outputs){try{await fs.access(dest);throw Error('Export file already exists: '+path.basename(dest))}catch(e){if(e.code!=='ENOENT')throw e}}
+ exporting=true;const written=[];
+ try{
+  for(let i=0;i<project.sheets.length;i++){
+   const buffer=await renderer.renderSheet(project.sheets[i],project.photos,project.settings);
+   await fs.writeFile(outputs[i],buffer,{flag:'wx'});written.push(outputs[i]);
+   if(!event.sender.isDestroyed())event.sender.send('export:progress',{completed:i+1,total:project.sheets.length});
+  }
+  return {folder,count:written.length};
+ }catch(e){for(const file of written)await fs.rm(file,{force:true}).catch(()=>{});throw e}
+ finally{exporting=false}
+});
