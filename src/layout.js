@@ -4,8 +4,30 @@ export function validateSettings(s){const width=Number(s.width),height=Number(s.
 export function sheetPixels(s,dpi=300){const v=validateSettings(s);return {width:Math.round(Math.max(v.width,v.height)*dpi),height:Math.round(Math.min(v.width,v.height)*dpi)}}
 const patterns=[ [1,4],[4,4],[4,9],[2,4],[1,1],[3,3],[2,6],[6,6],[1,6],[3,6],[4,6],[2,9],[6,9],[9,9],[1,9],[2,2],[3,4],[1,3] ];
 export const TEMPLATES=patterns.map(([left,right],i)=>({id:`spread-${String(i+1).padStart(2,'0')}`,name:`${left} + ${right}`,left,right,capacity:left+right}));
-function grid(n,x,y,w,h){const cols=Math.ceil(Math.sqrt(n*w/h));const rows=Math.ceil(n/cols);const slots=[];for(let i=0;i<n;i++){const col=i%cols,row=Math.floor(i/cols);slots.push({x:x+col*w/cols,y:y+row*h/rows,w:w/cols,h:h/rows})}return slots}
-export function templateSlots(template,settings){const s=validateSettings(settings);const long=Math.max(s.width,s.height),short=Math.min(s.width,s.height);const padX=s.bleed/long,padY=s.bleed/short,g=s.gutter/long;const half=(1-2*padX-g)/2;if(half<=0)throw Error('Not enough room for both pages');return [...grid(template.left,padX,padY,half,1-2*padY),...grid(template.right,padX+half+g,padY,half,1-2*padY)].map(slot=>Object.fromEntries(Object.entries(slot).map(([k,v])=>[k,Number(v.toFixed(6))])))}
+function grid(n,x,y,w,h){
+ if(n===0)return [];
+ const cols=Math.min(n,Math.max(1,Math.ceil(Math.sqrt(n*w/h))));
+ const rows=Math.ceil(n/cols),slots=[];
+ for(let row=0,used=0;row<rows;row++){
+  const count=Math.min(cols,n-used);
+  for(let col=0;col<count;col++)slots.push({x:x+col*w/count,y:y+row*h/rows,w:w/count,h:h/rows});
+  used+=count;
+ }
+ return slots;
+}
+export function templateSlots(template,settings,counts=null){
+ const s=validateSettings(settings),long=Math.max(s.width,s.height),short=Math.min(s.width,s.height);
+ const padX=s.bleed/long,padY=s.bleed/short,g=s.gutter/long,half=(1-2*padX-g)/2;
+ if(half<=0)throw Error('Not enough room for both pages');
+ const left=counts?counts.left:template.left,right=counts?counts.right:template.right;
+ if(!Number.isInteger(left)||!Number.isInteger(right)||left<0||right<0||left+right<1)throw Error('Invalid photo counts');
+ if(left===0||right===0){
+  const n=left+right;
+  return grid(n,padX,padY,1-2*padX,1-2*padY).map(roundSlot);
+ }
+ return [...grid(left,padX,padY,half,1-2*padY),...grid(right,padX+half+g,padY,half,1-2*padY)].map(roundSlot);
+}
+function roundSlot(slot){return Object.fromEntries(Object.entries(slot).map(([k,v])=>[k,Number(v.toFixed(6))]))}
 // Match photo aspect ratios to slots while keeping each sheet's photo group intact.
 // When dimensions are unavailable, preserve the original import order.
 export function matchPhotosToSlots(photos,slots){
@@ -46,7 +68,10 @@ export function generateAlbum(photos,settings,targetSheets=0){
     const count=Math.min(maxCapacity,Math.ceil(remaining/remainingSheets));
     const candidates=TEMPLATES.filter(t=>t.capacity>=count).sort((a,b)=>a.capacity-b.capacity||a.id.localeCompare(b.id));
     const template=candidates[idx%Math.min(3,candidates.length)];
-    const slots=templateSlots(template,settings);
+    // Distribute exactly the available photos, not the template's maximum capacity.
+    // This avoids blank cells when a sheet contains fewer photos than its template.
+    const left=count===1?1:Math.max(1,Math.min(count-1,Math.round(count*template.left/template.capacity)));
+    const slots=templateSlots(template,settings,{left,right:count-left});
     sheets.push({id:`sheet-${idx+1}`,templateId:template.id,items:matchPhotosToSlots(photos.slice(cursor,cursor+count),slots)});
     cursor+=count;
   }
