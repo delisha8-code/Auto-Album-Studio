@@ -14,8 +14,9 @@ function inspectPsd(buffer){
  skip(read32());skip(read32());
  const layerSectionSize=read32(),layerEnd=at+layerSectionSize;
  if(layerEnd>buffer.length)throw Error('Truncated layer and mask section');
+ if(layerSectionSize<6)throw Error('Invalid layer and mask section size');
  const layerInfoSize=read32(),infoEnd=at+layerInfoSize;
- if(infoEnd>layerEnd)throw Error('Invalid layer info size');
+ if(infoEnd>layerEnd||layerInfoSize<2)throw Error('Invalid layer info size');
  need(2);const count=buffer.readInt16BE(at);at+=2;
  if(count<0||count>100)throw Error('Unsupported layer count');
  const layers=[];
@@ -24,14 +25,18 @@ function inspectPsd(buffer){
   const top=buffer.readInt32BE(at),left=buffer.readInt32BE(at+4),bottom=buffer.readInt32BE(at+8),right=buffer.readInt32BE(at+12);at+=16;
   if(top<0||left<0||bottom<top||right<left||bottom>height||right>width)throw Error('Invalid layer bounds');
   const channelCount=read16(),channelsInfo=[];
+  if(channelCount!==4)throw Error('Unsupported layer channel count');
   for(let ch=0;ch<channelCount;ch++){need(6);const id=buffer.readInt16BE(at);at+=2;const size=read32();channelsInfo.push({id,size})}
+  if(channelsInfo.map(channel=>channel.id).join(',')!=='0,1,2,-1')throw Error('Invalid layer channel IDs');
   if(tag()!=='8BIM'||tag()!=='norm')throw Error('Invalid layer blend signature');
   skip(4);
   const extra=read32(),extraEnd=at+extra;
   if(extraEnd>infoEnd)throw Error('Invalid layer extra');
-  const mask=read32();skip(mask);
-  const blending=read32();skip(blending);
-  need(1);const nameLength=buffer[at],nameStart=at+1;skip(1+nameLength);
+  const mask=read32();if(at+mask>extraEnd)throw Error('Invalid layer mask length');skip(mask);
+  const blending=read32();if(at+blending>extraEnd)throw Error('Invalid blending ranges length');skip(blending);
+  if(at>=extraEnd)throw Error('Missing layer name');
+  need(1);const nameLength=buffer[at],nameStart=at+1;
+  if(nameStart+nameLength>extraEnd)throw Error('Invalid layer name length');skip(1+nameLength);
   const name=buffer.toString('utf8',nameStart,nameStart+nameLength);
   at+=((4-(1+nameLength)%4)%4);
   if(at>extraEnd)throw Error('Invalid layer name');
@@ -40,6 +45,7 @@ function inspectPsd(buffer){
  }
  for(const layer of layers)for(const channel of layer.channels){
   if(channel.size<2)throw Error('Invalid layer channel size');
+  if(at+channel.size>infoEnd)throw Error('Layer channel exceeds layer info');
   const start=at,compression=read16();
   if(compression!==0)throw Error('Unsupported layer compression');
   const pixels=layer.width*layer.height;
