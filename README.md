@@ -19,14 +19,17 @@ npm run build
 
 ## Current limitations
 - This is a **source-code starter**, not a packaged Windows installer.
-- Save format is `.aas.json` (JSON); SQLite persistence and autosave are not implemented.
+- Save format is `.aas.json` (JSON); SQLite persistence is not implemented. A single local recovery draft is autosaved after edits; it is not a replacement for manually saving named projects.
 - Folder import is recursive and can be slow for large collections. The import result returns all photos at once; progress/cancel is pending.
-- Thumbnail images are stored in Electron user-data cache; project JSON references original file paths. Moving source files or cache breaks previews.
+- Thumbnail images are stored in Electron user-data cache; project JSON references original file paths. Moving source files or cache breaks previews. Reopening a named project checks source file existence and warns about missing files.
 - Layout generation is deterministic and keeps input ordering; it does not yet match portrait/landscape orientation, rank hero images, detect duplicates, or avoid visual crop issues.
-- The sheet count target is a preference, **not an exact locked count**.
+- Positive sheet-count targets are enforced exactly when feasible; impossible targets are rejected.
 - Preview uses `object-fit: contain`, not final print rendering. The center guide is visual only.
 - No full-resolution JPG, PSD, PDF exports, editor tools, licensing, packaging, or installer yet.
 - No network upload is implemented. The dev server binds to 127.0.0.1.
 
 ## Security
 Electron context isolation and limited preload IPC are enabled. Do not open untrusted project files; stricter schema and path validation is needed before commercial distribution.
+
+## Recovery drafts
+The Electron app saves one local recovery draft in its user-data directory after a short idle period. On next startup, choose **Recover album** or **Discard recovery** before new autosaving begins. Drafts contain local file paths and album metadata, not original photographs. Use **Save project** to create a durable named `.aas.json` project file. Recovery behavior requires Windows/Electron testing; GitHub commits alone do not verify it.
