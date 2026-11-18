@@ -54,6 +54,6 @@ test('editing an earlier sheet preserves a later manual grid',()=>{
 test('insufficient photos for later manual grid fails without mutation',()=>{
  const original=generateAlbum(photos.slice(0,16),settings,2);
  const later=reflowFromSheet(original,photos.slice(0,16),settings,1,4,4);
- assert.throws(()=>reflowFromSheet(later,photos.slice(0,16),settings,0,8,8),/Not enough photos/);
+ assert.throws(()=>reflowFromSheet(later,photos.slice(0,16),settings,0,7,7),/Not enough photos/);
  assert.equal(later[1].templateId,'manual-4-4');
 });
