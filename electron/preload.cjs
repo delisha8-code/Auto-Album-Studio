@@ -1,6 +1,7 @@
 const {contextBridge,ipcRenderer}=require('electron');
 contextBridge.exposeInMainWorld('studio',{
  importPhotos:()=>ipcRenderer.invoke('photos:import'),
+ importBackground:()=>ipcRenderer.invoke('background:import'),
  exportJpg:(project)=>ipcRenderer.invoke('export:jpg',project),
  exportPdf:(project)=>ipcRenderer.invoke('export:pdf',project),
  exportPsd:(project)=>ipcRenderer.invoke('export:psd',project),
