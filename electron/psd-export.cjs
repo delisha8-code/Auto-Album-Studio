@@ -1,6 +1,7 @@
 const sharp=require('sharp');
 const {dimensions,slotBounds,cropValues,borderFor}=require('./sheet-renderer.cjs');
 const path=require('node:path');
+const {backgroundSvg}=require('./backgrounds.cjs');
 // A dependency-free layered PSD writer. PSD v1, 8-bit RGB, raw planar channels.
 // Deliberately limited to proof resolution to keep memory bounded.
 const u16=n=>{const b=Buffer.alloc(2);b.writeUInt16BE(n);return b};
@@ -76,7 +77,7 @@ async function buildLayeredPsd(sheet,photos,settings,{dpi=72}={}){
   for(let i=0;i<width*height;i++)for(let ch=0;ch<4;ch++)rgba[i*4+ch]=l.planes[ch][i];
   return {input:rgba,raw:{width,height,channels:4},left,top};
  });
- const merged=await sharp({create:{...canvas,channels:3,background:'#ffffff'}}).composite(composites).raw().toBuffer();
+ const merged=await sharp(Buffer.from(backgroundSvg(sheet,canvas.width,canvas.height))).resize(canvas.width,canvas.height).removeAlpha().composite(composites).raw().toBuffer();
  const rgb=planar(merged,canvas.width,canvas.height,3);
  const header=Buffer.concat([Buffer.from('8BPS','ascii'),u16(1),Buffer.alloc(6),u16(3),u32(canvas.height),u32(canvas.width),u16(8),u16(3)]);
  return Buffer.concat([header,u32(0),u32(0),layerAndMask,u16(0),...rgb]);
