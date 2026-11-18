@@ -1,4 +1,4 @@
-import {templateSlots,matchPhotosToSlots,generateAlbum} from './layout.js';
+import {TEMPLATES,templateSlots,matchPhotosToSlots,generateAlbum} from './layout.js';
 export function swapSheetPhotos(sheets,sourceSheet,sourceIndex,targetSheet,targetIndex){
  if(!Array.isArray(sheets))throw Error('Invalid sheets');
  const a=sheets[sourceSheet]?.items?.[sourceIndex],b=sheets[targetSheet]?.items?.[targetIndex];
@@ -40,10 +40,27 @@ export function reflowFromSheet(sheets,photos,settings,sheetIndex,left,right){
  if(unique.length<count)throw Error('Not enough remaining photographs for this grid');
  const template={left,right,capacity:count,id:'manual-'+left+'-'+right};
  const slots=templateSlots(template,settings,{left,right});
- const current={...sheets[sheetIndex],templateId:template.id,items:matchPhotosToSlots(unique.slice(0,count),slots,settings)};
+ const current={...sheets[sheetIndex],layoutMode:'manual',templateId:template.id,items:matchPhotosToSlots(unique.slice(0,count),slots,settings)};
  const rest=unique.slice(count);
  const next=rest.length?generateAlbum(rest,settings):[];
  const usedIds=new Set([...prefix,current,...next].flatMap(s=>s.items.map(i=>i.photoId)));
  if(usedIds.size!==new Set([...prefix.flatMap(s=>s.items.map(i=>i.photoId)),...unique.map(p=>p.id)]).size)throw Error('Reflow lost photographs');
  return [...prefix,current,...next.map((s,i)=>({...s,id:'sheet-'+(sheetIndex+i+2)}))];
+}
+
+/** Rebuild only the selected spread automatically; earlier spreads remain fixed. */
+export function autoReflowFromSheet(sheets,photos,settings,sheetIndex){
+ if(!Array.isArray(sheets)||!Array.isArray(photos)||!Number.isInteger(sheetIndex)||sheetIndex<0||sheetIndex>=sheets.length)throw Error('Invalid sheet');
+ const prefix=sheets.slice(0,sheetIndex);
+ const used=new Set(prefix.flatMap(s=>s.items.map(i=>i.photoId)));
+ const photoMap=new Map(photos.map(p=>[p.id,p]));
+ const pool=[...new Set(sheets.slice(sheetIndex).flatMap(s=>s.items.map(i=>i.photoId)))].filter(id=>!used.has(id)).map(id=>photoMap.get(id)).filter(Boolean);
+ if(!pool.length)throw Error('No remaining photographs');
+ const count=Math.min(8,pool.length);
+ const template=TEMPLATES.filter(t=>t.capacity>=count).sort((a,b)=>a.capacity-b.capacity)[0];
+ const left=count===1?1:Math.max(1,Math.min(count-1,Math.round(count*template.left/template.capacity)));
+ const slots=templateSlots(template,settings,{left,right:count-left});
+ const current={...sheets[sheetIndex],layoutMode:'auto',templateId:template.id,items:matchPhotosToSlots(pool.slice(0,count),slots,settings)};
+ const next=pool.length>count?generateAlbum(pool.slice(count),settings):[];
+ return [...prefix,current,...next.map((s,i)=>({...s,layoutMode:'auto',id:'sheet-'+(sheetIndex+i+2)}))];
 }
