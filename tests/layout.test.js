@@ -75,3 +75,26 @@ test('photo assignment remains deterministic for identical aspect ratios',async(
  const slots=templateSlots(TEMPLATES.find(t=>t.capacity===8),settings);
  assert.deepEqual(matchPhotosToSlots(photos,slots,settings),matchPhotosToSlots(photos,slots,settings));
 });
+
+test('single-photo sheets never cross the center fold',()=>{
+ const s={width:12,height:36,bleed:.2,gutter:1};
+ const slots=templateSlots({left:1,right:0},s,{left:1,right:0});
+ const center=0.5;
+ assert.equal(slots.length,1);
+ assert.ok(slots[0].x+slots[0].w<center);
+});
+test('independent four-sided margins constrain all slots',()=>{
+ const s={width:12,height:36,bleed:.1,gutter:1,margins:{left:1,right:1.5,top:.5,bottom:.75}};
+ const slots=templateSlots({left:4,right:3},s,{left:4,right:3});
+ const left=1/36,right=1.5/36,top=.5/12,bottom=.75/12;
+ for(const slot of slots){
+  assert.ok(slot.x>=left-1e-5);
+  assert.ok(slot.x+slot.w<=1-right+1e-5);
+  assert.ok(slot.y>=top-1e-5);
+  assert.ok(slot.y+slot.h<=1-bottom+1e-5);
+  assert.ok(slot.x+slot.w<=.5-1/72+1e-5||slot.x>=.5+1/72-1e-5);
+ }
+});
+test('invalid negative custom margins are rejected',()=>{
+ assert.throws(()=>templateSlots({left:2,right:2},{width:12,height:36,bleed:.1,gutter:1,margins:{top:-1}}),/Invalid page margin/);
+});
