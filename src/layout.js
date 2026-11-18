@@ -39,27 +39,41 @@ export function templateSlots(template,settings,counts=null,style='grid'){
 function roundSlot(slot){return Object.fromEntries(Object.entries(slot).map(([k,v])=>[k,Number(v.toFixed(6))]))}
 // Match photo aspect ratios to slots while keeping each sheet's photo group intact.
 // When dimensions are unavailable, preserve the original import order.
+// Minimum-cost assignment avoids a greedy first slot consuming the best photo for another slot.
+// Dynamic programming is bounded by the 18-photo maximum template capacity.
 export function matchPhotosToSlots(photos,slots,settings=null){
-  const canvasRatio=settings?Math.max(Number(settings.width),Number(settings.height))/Math.min(Number(settings.width),Number(settings.height)):1;
-  if(photos.length>slots.length)throw Error('Not enough slots for photos');
-  const remaining=photos.map((photo,index)=>({photo,index}));
-  const assignments=[];
-  for(let i=0;i<photos.length;i++){
-    const slot=slots[i],slotRatio=slot.w/slot.h*canvasRatio;
-    let best=0,bestScore=Infinity;
-    for(let j=0;j<remaining.length;j++){
-      const {photo,index}=remaining[j];
-      const width=Number(photo.width),height=Number(photo.height);
-      const known=Number.isFinite(width)&&Number.isFinite(height)&&width>0&&height>0;
-      const score=known?Math.abs(Math.log((width/height)/slotRatio)):1e6;
-      if(score<bestScore-1e-9||(Math.abs(score-bestScore)<=1e-9&&index<remaining[best].index)){
-        best=j;bestScore=score;
-      }
-    }
-    assignments.push({photoId:remaining[best].photo.id,slot});
-    remaining.splice(best,1);
+ if(photos.length>slots.length)throw Error('Not enough slots for photos');
+ if(!photos.length)return [];
+ const canvasRatio=settings?Math.max(Number(settings.width),Number(settings.height))/Math.min(Number(settings.width),Number(settings.height)):1;
+ const n=photos.length;
+ if(n>18)throw Error('Too many photos for automatic slot matching');
+ const costs=Array.from({length:n},(_,i)=>slots.slice(0,n).map(slot=>{
+  const width=Number(photos[i].width),height=Number(photos[i].height);
+  const known=Number.isFinite(width)&&Number.isFinite(height)&&width>0&&height>0;
+  const ratio=slot.w/slot.h*canvasRatio;
+  return known?Math.abs(Math.log((width/height)/ratio)):0;
+ }));
+ const size=1<<n,dp=new Float64Array(size).fill(Infinity),parent=new Int32Array(size).fill(-1);
+ dp[0]=0;
+ const bits=new Uint8Array(size);
+ for(let mask=1;mask<size;mask++)bits[mask]=bits[mask>>1]+(mask&1);
+ for(let mask=0;mask<size-1;mask++){
+  if(!Number.isFinite(dp[mask]))continue;
+  const slotIndex=bits[mask];
+  for(let photoIndex=0;photoIndex<n;photoIndex++){
+   if(mask&(1<<photoIndex))continue;
+   const next=mask|(1<<photoIndex),candidate=dp[mask]+costs[photoIndex][slotIndex];
+   if(candidate<dp[next]-1e-10){dp[next]=candidate;parent[next]=photoIndex}
   }
-  return assignments;
+ }
+ const result=new Array(n);let mask=size-1;
+ for(let slotIndex=n-1;slotIndex>=0;slotIndex--){
+  const photoIndex=parent[mask];
+  if(photoIndex<0)throw Error('Could not match photos to slots');
+  result[slotIndex]={photoId:photos[photoIndex].id,slot:slots[slotIndex]};
+  mask^=1<<photoIndex;
+ }
+ return result;
 }
 export function generateAlbum(photos,settings,targetSheets=0){
   validateSettings(settings);
