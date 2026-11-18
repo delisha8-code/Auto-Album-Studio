@@ -1,5 +1,5 @@
 const sharp=require('sharp');
-const {dimensions,slotBounds,cropValues,borderFor}=require('./sheet-renderer.cjs');
+const {dimensions,slotBounds,cropValues,borderFor,borderSvg}=require('./sheet-renderer.cjs');
 const path=require('node:path');
 const {renderBackground}=require('./custom-background.cjs');
 // A dependency-free layered PSD writer. PSD v1, 8-bit RGB, raw planar channels.
@@ -41,8 +41,7 @@ async function makeLayer(item,photo,canvas,border){
   image=await sharp({create:{width:box.width,height:box.height,channels:4,background:'#ffffff'}})
    .composite([{input:resized,left:Math.round(Math.max(0,box.width-rw)*x/100),top:Math.round(Math.max(0,box.height-rh)*y/100)}]).png().toBuffer();
  }
- const bw=Math.min(border.width,Math.floor(box.width/2),Math.floor(box.height/2));
- if(bw>0){const overlay=Buffer.from(`<svg width="${box.width}" height="${box.height}"><rect x="${bw/2}" y="${bw/2}" width="${box.width-bw}" height="${box.height-bw}" fill="none" stroke="${border.color}" stroke-width="${bw}"/></svg>`);image=await sharp(image).composite([{input:overlay,left:0,top:0}]).png().toBuffer()}
+ const overlay=borderSvg(box,border);if(overlay)image=await sharp(image).composite([{input:overlay,left:0,top:0}]).png().toBuffer();
  const {data,info}=await sharp(image).ensureAlpha().raw().toBuffer({resolveWithObject:true});
  return {name:photo.name||'Photo',box,planes:planar(data,info.width,info.height)};
 }
