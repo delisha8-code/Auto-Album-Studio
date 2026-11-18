@@ -36,8 +36,15 @@ async function renderSheet(sheet,photos,settings,options={}){
   const rw=Math.max(1,Math.ceil(sw*scale)),rh=Math.max(1,Math.ceil(sh*scale));
   const offsetX=Math.max(0,Math.round((rw-box.width)*x/100));
   const offsetY=Math.max(0,Math.round((rh-box.height)*y/100));
-  const resized=await sharp(photo.path).rotate().resize(rw,rh,{fit:'fill'}).png().toBuffer();
-  const input=await sharp({create:{width:box.width,height:box.height,channels:4,background:'#ffffff'}}).composite([{input:resized,left:rw>=box.width?-offsetX:Math.round((box.width-rw)*x/100),top:rh>=box.height?-offsetY:Math.round((box.height-rh)*y/100)}]).png().toBuffer();
+  const resized=sharp(photo.path).rotate().resize(rw,rh,{fit:'fill'});
+  let input;
+  if(rw>=box.width&&rh>=box.height){
+   input=await resized.extract({left:offsetX,top:offsetY,width:box.width,height:box.height}).png().toBuffer();
+  }else{
+   const small=await resized.png().toBuffer();
+   input=await sharp({create:{width:box.width,height:box.height,channels:4,background:'#ffffff'}})
+    .composite([{input:small,left:Math.round((box.width-rw)*x/100),top:Math.round((box.height-rh)*y/100)}]).png().toBuffer();
+  }
   layers.push({input,left:box.left,top:box.top});
  }
  return sharp({create:{width,height,channels:3,background:'#ffffff'}}).composite(layers).jpeg({quality:92,mozjpeg:true}).withMetadata({density:options.dpi||300}).toBuffer();
