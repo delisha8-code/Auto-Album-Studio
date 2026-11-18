@@ -12,7 +12,8 @@ function cropValues(item){
  const c=item.crop||{};
  return {zoom:Number.isFinite(c.zoom)?Math.max(1,Math.min(3,c.zoom)):1,x:Number.isFinite(c.x)?Math.max(0,Math.min(100,c.x)):50,y:Number.isFinite(c.y)?Math.max(0,Math.min(100,c.y)):50,fit:c.fit==='contain'?'contain':'cover'};
 }
-function borderFor(sheet,dpi=300){const b=sheet?.border||{};const width=Number(b.width);return {width:Number.isFinite(width)?Math.max(0,Math.min(60,Math.round(width*dpi/300))):0,color:/^#[0-9a-fA-F]{6}$/.test(b.color||'')?b.color:'#ffffff'};}
+function borderFor(sheet,dpi=300){const b=sheet?.border||{};const width=Number(b.width);return {width:Number.isFinite(width)?Math.max(0,Math.min(60,Math.round(width*dpi/300))):0,color:/^#[0-9a-fA-F]{6}$/.test(b.color||'')?b.color:'#ffffff',radius:b.radius==='rounded'?Math.max(0,Math.round(12*dpi/300)):0,shadow:b.shadow===true};}
+function borderSvg(box,border){const bw=Math.min(border.width,Math.floor(box.width/2),Math.floor(box.height/2));if(!bw&&!border.shadow)return null;const r=Math.min(border.radius,Math.floor(Math.min(box.width,box.height)/4));const inset=bw/2;const shadow=border.shadow?`<rect x="${Math.min(box.width-1,bw+3)}" y="${Math.min(box.height-1,bw+3)}" width="${Math.max(1,box.width-2*bw-6)}" height="${Math.max(1,box.height-2*bw-6)}" rx="${r}" fill="none" stroke="#000000" stroke-opacity="0.22" stroke-width="${Math.max(2,bw+4)}"/>`:'';return Buffer.from(`<svg width="${box.width}" height="${box.height}" xmlns="http://www.w3.org/2000/svg">${shadow}<rect x="${inset}" y="${inset}" width="${Math.max(0,box.width-bw)}" height="${Math.max(0,box.height-bw)}" rx="${r}" fill="none" stroke="${border.color}" stroke-width="${bw}"/></svg>`)}
 function slotBounds(slot,width,height){
  if(!slot||![slot.x,slot.y,slot.w,slot.h].every(Number.isFinite)||slot.w<=0||slot.h<=0||slot.x<0||slot.y<0||slot.x+slot.w>1.00001||slot.y+slot.h>1.00001)throw Error('Invalid sheet slot geometry');
  const left=Math.round(slot.x*width),top=Math.round(slot.y*height);
@@ -49,8 +50,8 @@ async function renderSheet(sheet,photos,settings,options={}){
   }
   layers.push({input,left:box.left,top:box.top});
   const border=borderFor(sheet,options.dpi||300);
-  if(border.width>0){const bw=Math.min(border.width,Math.floor(box.width/2),Math.floor(box.height/2));if(bw>0){const overlay=Buffer.from(`<svg width="${box.width}" height="${box.height}"><rect x="${bw/2}" y="${bw/2}" width="${box.width-bw}" height="${box.height-bw}" fill="none" stroke="${border.color}" stroke-width="${bw}"/></svg>`);layers.push({input:overlay,left:box.left,top:box.top})}}
+  const overlay=borderSvg(box,border);if(overlay)layers.push({input:overlay,left:box.left,top:box.top});
  }
  return sharp(await renderBackground(sheet,width,height)).composite(layers).jpeg({quality:92,mozjpeg:true}).withMetadata({density:options.dpi||300}).toBuffer();
 }
-module.exports={dimensions,slotBounds,cropValues,borderFor,renderSheet};
+module.exports={dimensions,slotBounds,cropValues,borderFor,borderSvg,renderSheet};
