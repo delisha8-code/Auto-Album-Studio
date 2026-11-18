@@ -40,7 +40,9 @@ async function renderSheet(sheet,photos,settings,options={}){
   const rw=Math.max(1,Math.ceil(sw*scale)),rh=Math.max(1,Math.ceil(sh*scale));
   const offsetX=Math.max(0,Math.round((rw-box.width)*x/100));
   const offsetY=Math.max(0,Math.round((rh-box.height)*y/100));
-  const resized=sharp(photo.path).rotate().rotate(rotation).resize(rw,rh,{fit:'fill'}).flop(flipH).flip(flipV);
+  let resized=sharp(await sharp(photo.path).rotate().toBuffer()).rotate(rotation).resize(rw,rh,{fit:'fill'});
+  if(flipH)resized=resized.flop();
+  if(flipV)resized=resized.flip();
   let input;
   if(rw>=box.width&&rh>=box.height){
    input=await resized.extract({left:offsetX,top:offsetY,width:box.width,height:box.height}).png().toBuffer();
