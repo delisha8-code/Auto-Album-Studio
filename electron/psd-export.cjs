@@ -27,12 +27,12 @@ async function makeLayer(item,photo,canvas){
  const rotated=[5,6,7,8].includes(meta.orientation);
  const sw=rotated?meta.height:meta.width,sh=rotated?meta.width:meta.height;
  if(!sw||!sh)throw Error('Invalid source photo');
- const {zoom,x,y}=cropValues(item);
- const scale=Math.max(box.width/sw,box.height/sh)*zoom;
- const rw=Math.max(box.width,Math.ceil(sw*scale)),rh=Math.max(box.height,Math.ceil(sh*scale));
+ const {zoom,x,y,fit}=cropValues(item);
+ const scale=(fit==='contain'?Math.min(box.width/sw,box.height/sh):Math.max(box.width/sw,box.height/sh))*zoom;
+ const rw=Math.max(1,Math.ceil(sw*scale)),rh=Math.max(1,Math.ceil(sh*scale));
  const left=Math.round((rw-box.width)*x/100),top=Math.round((rh-box.height)*y/100);
- const {data,info}=await sharp(photo.path).rotate().resize(rw,rh,{fit:'fill'})
-  .extract({left,top,width:box.width,height:box.height}).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+ const resized=await sharp(photo.path).rotate().resize(rw,rh,{fit:'fill'}).png().toBuffer();
+ const {data,info}=await sharp({create:{width:box.width,height:box.height,channels:4,background:'#ffffff'}}).composite([{input:resized,left:rw>=box.width?-left:Math.round((box.width-rw)*x/100),top:rh>=box.height?-top:Math.round((box.height-rh)*y/100)}]).ensureAlpha().raw().toBuffer({resolveWithObject:true});
  return {name:photo.name||'Photo',box,planes:planar(data,info.width,info.height)};
 }
 function layerRecord(layer){
