@@ -10,7 +10,7 @@ function dimensions(settings,dpi=300){
 }
 function cropValues(item){
  const c=item.crop||{};
- return {zoom:Number.isFinite(c.zoom)?Math.max(1,Math.min(3,c.zoom)):1,x:Number.isFinite(c.x)?Math.max(0,Math.min(100,c.x)):50,y:Number.isFinite(c.y)?Math.max(0,Math.min(100,c.y)):50,fit:c.fit==='contain'?'contain':'cover'};
+ return {zoom:Number.isFinite(c.zoom)?Math.max(1,Math.min(3,c.zoom)):1,x:Number.isFinite(c.x)?Math.max(0,Math.min(100,c.x)):50,y:Number.isFinite(c.y)?Math.max(0,Math.min(100,c.y)):50,fit:c.fit==='contain'?'contain':'cover',rotation:[0,90,180,270].includes(c.rotation)?c.rotation:0,flipH:c.flipH===true,flipV:c.flipV===true};
 }
 function borderFor(sheet,dpi=300){const b=sheet?.border||{};const width=Number(b.width);return {width:Number.isFinite(width)?Math.max(0,Math.min(60,Math.round(width*dpi/300))):0,color:/^#[0-9a-fA-F]{6}$/.test(b.color||'')?b.color:'#ffffff',radius:b.radius==='rounded'?Math.max(0,Math.round(12*dpi/300)):0,shadow:b.shadow===true};}
 function borderSvg(box,border){const bw=Math.min(border.width,Math.floor(box.width/2),Math.floor(box.height/2));if(!bw&&!border.shadow)return null;const r=Math.min(border.radius,Math.floor(Math.min(box.width,box.height)/4));const inset=bw/2;const shadow=border.shadow?`<rect x="${Math.min(box.width-1,bw+3)}" y="${Math.min(box.height-1,bw+3)}" width="${Math.max(1,box.width-2*bw-6)}" height="${Math.max(1,box.height-2*bw-6)}" rx="${r}" fill="none" stroke="#000000" stroke-opacity="0.22" stroke-width="${Math.max(2,bw+4)}"/>`:'';return Buffer.from(`<svg width="${box.width}" height="${box.height}" xmlns="http://www.w3.org/2000/svg">${shadow}<rect x="${inset}" y="${inset}" width="${Math.max(0,box.width-bw)}" height="${Math.max(0,box.height-bw)}" rx="${r}" fill="none" stroke="${border.color}" stroke-width="${bw}"/></svg>`)}
@@ -30,16 +30,17 @@ async function renderSheet(sheet,photos,settings,options={}){
   if(!photo||typeof photo.path!=='string'||!path.isAbsolute(photo.path))throw Error('Missing source photo: '+item.photoId);
   const box=slotBounds(item.slot,width,height);
   if(box.width<1||box.height<1)throw Error('Photo slot too small');
-  const {zoom,x,y,fit}=cropValues(item);
+  const {zoom,x,y,fit,rotation,flipH,flipV}=cropValues(item);
   const meta=await sharp(photo.path).metadata();
   const oriented=[5,6,7,8].includes(meta.orientation);
-  const sw=oriented?meta.height:meta.width,sh=oriented?meta.width:meta.height;
+  const nativeW=oriented?meta.height:meta.width,nativeH=oriented?meta.width:meta.height;
+  const sw=rotation%180?nativeH:nativeW,sh=rotation%180?nativeW:nativeH;
   if(!sw||!sh)throw Error('Invalid source image dimensions');
   const scale=(fit==='contain'?Math.min(box.width/sw,box.height/sh):Math.max(box.width/sw,box.height/sh))*zoom;
   const rw=Math.max(1,Math.ceil(sw*scale)),rh=Math.max(1,Math.ceil(sh*scale));
   const offsetX=Math.max(0,Math.round((rw-box.width)*x/100));
   const offsetY=Math.max(0,Math.round((rh-box.height)*y/100));
-  const resized=sharp(photo.path).rotate().resize(rw,rh,{fit:'fill'});
+  const resized=sharp(photo.path).rotate().rotate(rotation).resize(rw,rh,{fit:'fill'}).flop(flipH).flip(flipV);
   let input;
   if(rw>=box.width&&rh>=box.height){
    input=await resized.extract({left:offsetX,top:offsetY,width:box.width,height:box.height}).png().toBuffer();
