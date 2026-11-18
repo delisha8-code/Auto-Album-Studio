@@ -36,9 +36,9 @@ async function makeLayer(item,photo,canvas){
  if(rw>=box.width&&rh>=box.height){
   image=await pipeline.extract({left,top,width:box.width,height:box.height}).png().toBuffer();
  }else{
-  const resized=await pipeline.png().toBuffer();
+  const resized=await pipeline.extract({left:rw>box.width?left:0,top:rh>box.height?top:0,width:Math.min(rw,box.width),height:Math.min(rh,box.height)}).png().toBuffer();
   image=await sharp({create:{width:box.width,height:box.height,channels:4,background:'#ffffff'}})
-   .composite([{input:resized,left:Math.round((box.width-rw)*x/100),top:Math.round((box.height-rh)*y/100)}]).png().toBuffer();
+   .composite([{input:resized,left:Math.round(Math.max(0,box.width-rw)*x/100),top:Math.round(Math.max(0,box.height-rh)*y/100)}]).png().toBuffer();
  }
  const {data,info}=await sharp(image).ensureAlpha().raw().toBuffer({resolveWithObject:true});
  return {name:photo.name||'Photo',box,planes:planar(data,info.width,info.height)};
