@@ -46,7 +46,16 @@ export function matchPhotosToSlots(photos,slots,settings=null){
  if(!photos.length)return [];
  const canvasRatio=settings?Math.max(Number(settings.width),Number(settings.height))/Math.min(Number(settings.width),Number(settings.height)):1;
  const n=photos.length;
- if(n>18)throw Error('Too many photos for automatic slot matching');
+ if(n>18){
+  const remaining=photos.slice(),result=[];
+  for(const slot of slots.slice(0,n)){
+   const ratio=slot.w/slot.h*canvasRatio;
+   let best=0,score=Infinity;
+   remaining.forEach((photo,i)=>{const w=Number(photo.width),h=Number(photo.height);const s=w>0&&h>0?Math.abs(Math.log((w/h)/ratio)):0;if(s<score){score=s;best=i}});
+   result.push({photoId:remaining.splice(best,1)[0].id,slot});
+  }
+  return result;
+ }
  const costs=Array.from({length:n},(_,i)=>slots.slice(0,n).map(slot=>{
   const width=Number(photos[i].width),height=Number(photos[i].height);
   const known=Number.isFinite(width)&&Number.isFinite(height)&&width>0&&height>0;
