@@ -66,6 +66,10 @@ async function buildLayeredPsd(sheet,photos,settings,{dpi=72}={}){
  const map=new Map(photos.map(p=>[p.id,p]));
  const layers=[];
  for(const item of sheet.items)layers.push(await makeLayer(item,map.get(item.photoId),canvas,borderFor(sheet,dpi)));
+ // PSD layer records are ordered from top to bottom: photos first, background last.
+ const background=await renderBackground(sheet,canvas.width,canvas.height);
+ const {data:bgRaw,info:bgInfo}=await sharp(background).ensureAlpha().raw().toBuffer({resolveWithObject:true});
+ layers.push({name:'Album Background',box:{left:0,top:0,width:canvas.width,height:canvas.height},planes:planar(bgRaw,bgInfo.width,bgInfo.height)});
  if(layers.length>100)throw Error('Too many PSD layers');
  const records=Buffer.concat(layers.map(layerRecord));
  const channelData=Buffer.concat(layers.flatMap(l=>l.planes.map(p=>Buffer.concat([u16(0),p]))));
@@ -73,14 +77,14 @@ async function buildLayeredPsd(sheet,photos,settings,{dpi=72}={}){
  const paddedLayerInfo=layerInfo.length%2?Buffer.concat([layerInfo,Buffer.alloc(1)]):layerInfo;
  const layerSection=Buffer.concat([u32(paddedLayerInfo.length),paddedLayerInfo,u32(0)]);
  const layerAndMask=Buffer.concat([u32(layerSection.length),layerSection]);
- // Merged composite uses a white background and the same cropped slot rasters.
- const composites=layers.map(l=>{
+ // Merged composite is built from the photo layers over the independently editable background.
+ const composites=layers.slice(0,-1).map(l=>{
   const {left,top,width,height}=l.box;
   const rgba=Buffer.alloc(width*height*4);
   for(let i=0;i<width*height;i++)for(let ch=0;ch<4;ch++)rgba[i*4+ch]=l.planes[ch][i];
   return {input:rgba,raw:{width,height,channels:4},left,top};
  });
- const merged=await sharp(await renderBackground(sheet,canvas.width,canvas.height)).removeAlpha().composite(composites).raw().toBuffer();
+ const merged=await sharp(background).removeAlpha().composite(composites).raw().toBuffer();
  const rgb=planar(merged,canvas.width,canvas.height,3);
  const header=Buffer.concat([Buffer.from('8BPS','ascii'),u16(1),Buffer.alloc(6),u16(3),u32(canvas.height),u32(canvas.width),u16(8),u16(3)]);
  return Buffer.concat([header,u32(0),u32(0),layerAndMask,u16(0),...rgb]);
