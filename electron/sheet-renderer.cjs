@@ -9,7 +9,7 @@ function dimensions(settings,dpi=300){
 }
 function cropValues(item){
  const c=item.crop||{};
- return {zoom:Number.isFinite(c.zoom)?Math.max(1,Math.min(3,c.zoom)):1,x:Number.isFinite(c.x)?Math.max(0,Math.min(100,c.x)):50,y:Number.isFinite(c.y)?Math.max(0,Math.min(100,c.y)):50};
+ return {zoom:Number.isFinite(c.zoom)?Math.max(1,Math.min(3,c.zoom)):1,x:Number.isFinite(c.x)?Math.max(0,Math.min(100,c.x)):50,y:Number.isFinite(c.y)?Math.max(0,Math.min(100,c.y)):50,fit:c.fit==='contain'?'contain':'cover'};
 }
 function slotBounds(slot,width,height){
  if(!slot||![slot.x,slot.y,slot.w,slot.h].every(Number.isFinite)||slot.w<=0||slot.h<=0||slot.x<0||slot.y<0||slot.x+slot.w>1.00001||slot.y+slot.h>1.00001)throw Error('Invalid sheet slot geometry');
@@ -27,16 +27,17 @@ async function renderSheet(sheet,photos,settings,options={}){
   if(!photo||typeof photo.path!=='string'||!path.isAbsolute(photo.path))throw Error('Missing source photo: '+item.photoId);
   const box=slotBounds(item.slot,width,height);
   if(box.width<1||box.height<1)throw Error('Photo slot too small');
-  const {zoom,x,y}=cropValues(item);
+  const {zoom,x,y,fit}=cropValues(item);
   const meta=await sharp(photo.path).metadata();
   const oriented=[5,6,7,8].includes(meta.orientation);
   const sw=oriented?meta.height:meta.width,sh=oriented?meta.width:meta.height;
   if(!sw||!sh)throw Error('Invalid source image dimensions');
-  const scale=Math.max(box.width/sw,box.height/sh)*zoom;
-  const rw=Math.max(box.width,Math.ceil(sw*scale)),rh=Math.max(box.height,Math.ceil(sh*scale));
-  const offsetX=Math.min(rw-box.width,Math.max(0,Math.round((rw-box.width)*x/100)));
-  const offsetY=Math.min(rh-box.height,Math.max(0,Math.round((rh-box.height)*y/100)));
-  const input=await sharp(photo.path).rotate().resize(rw,rh,{fit:'fill'}).extract({left:offsetX,top:offsetY,width:box.width,height:box.height}).png().toBuffer();
+  const scale=(fit==='contain'?Math.min(box.width/sw,box.height/sh):Math.max(box.width/sw,box.height/sh))*zoom;
+  const rw=Math.max(1,Math.ceil(sw*scale)),rh=Math.max(1,Math.ceil(sh*scale));
+  const offsetX=Math.max(0,Math.round((rw-box.width)*x/100));
+  const offsetY=Math.max(0,Math.round((rh-box.height)*y/100));
+  const resized=await sharp(photo.path).rotate().resize(rw,rh,{fit:'fill'}).png().toBuffer();
+  const input=await sharp({create:{width:box.width,height:box.height,channels:4,background:'#ffffff'}}).composite([{input:resized,left:rw>=box.width?-offsetX:Math.round((box.width-rw)*x/100),top:rh>=box.height?-offsetY:Math.round((box.height-rh)*y/100)}]).png().toBuffer();
   layers.push({input,left:box.left,top:box.top});
  }
  return sharp({create:{width,height,channels:3,background:'#ffffff'}}).composite(layers).jpeg({quality:92,mozjpeg:true}).withMetadata({density:options.dpi||300}).toBuffer();
