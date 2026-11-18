@@ -33,7 +33,9 @@ async function makeLayer(item,photo,canvas,border){
  const scale=(fit==='contain'?Math.min(box.width/sw,box.height/sh):Math.max(box.width/sw,box.height/sh))*zoom;
  const rw=Math.max(1,Math.ceil(sw*scale)),rh=Math.max(1,Math.ceil(sh*scale));
  const left=Math.round((rw-box.width)*x/100),top=Math.round((rh-box.height)*y/100);
- let pipeline=sharp(photo.path).rotate().rotate(rotation).resize(rw,rh,{fit:'fill'}).flop(flipH).flip(flipV);
+ let pipeline=sharp(await sharp(photo.path).rotate().toBuffer()).rotate(rotation).resize(rw,rh,{fit:'fill'});
+ if(flipH)pipeline=pipeline.flop();
+ if(flipV)pipeline=pipeline.flip();
  let image;
  if(rw>=box.width&&rh>=box.height){
   image=await pipeline.extract({left,top,width:box.width,height:box.height}).png().toBuffer();
