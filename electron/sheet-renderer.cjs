@@ -1,6 +1,6 @@
 const sharp=require('sharp');
 const path=require('node:path');
-const {backgroundSvg}=require('./backgrounds.cjs');
+const {renderBackground}=require('./custom-background.cjs');
 function dimensions(settings,dpi=300){
  const a=Number(settings?.width),b=Number(settings?.height);
  if(!Number.isFinite(a)||!Number.isFinite(b)||a<=0||b<=0||!Number.isFinite(dpi)||dpi<=0)throw Error('Invalid export dimensions');
@@ -51,6 +51,6 @@ async function renderSheet(sheet,photos,settings,options={}){
   const border=borderFor(sheet,options.dpi||300);
   if(border.width>0){const bw=Math.min(border.width,Math.floor(box.width/2),Math.floor(box.height/2));if(bw>0){const overlay=Buffer.from(`<svg width="${box.width}" height="${box.height}"><rect x="${bw/2}" y="${bw/2}" width="${box.width-bw}" height="${box.height-bw}" fill="none" stroke="${border.color}" stroke-width="${bw}"/></svg>`);layers.push({input:overlay,left:box.left,top:box.top})}}
  }
- return sharp(Buffer.from(backgroundSvg(sheet,width,height))).resize(width,height).composite(layers).jpeg({quality:92,mozjpeg:true}).withMetadata({density:options.dpi||300}).toBuffer();
+ return sharp(await renderBackground(sheet,width,height)).composite(layers).jpeg({quality:92,mozjpeg:true}).withMetadata({density:options.dpi||300}).toBuffer();
 }
 module.exports={dimensions,slotBounds,cropValues,borderFor,renderSheet};
