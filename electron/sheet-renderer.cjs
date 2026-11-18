@@ -41,9 +41,9 @@ async function renderSheet(sheet,photos,settings,options={}){
   if(rw>=box.width&&rh>=box.height){
    input=await resized.extract({left:offsetX,top:offsetY,width:box.width,height:box.height}).png().toBuffer();
   }else{
-   const small=await resized.png().toBuffer();
+   const small=await resized.extract({left:rw>box.width?offsetX:0,top:rh>box.height?offsetY:0,width:Math.min(rw,box.width),height:Math.min(rh,box.height)}).png().toBuffer();
    input=await sharp({create:{width:box.width,height:box.height,channels:4,background:'#ffffff'}})
-    .composite([{input:small,left:Math.round((box.width-rw)*x/100),top:Math.round((box.height-rh)*y/100)}]).png().toBuffer();
+    .composite([{input:small,left:Math.round(Math.max(0,box.width-rw)*x/100),top:Math.round(Math.max(0,box.height-rh)*y/100)}]).png().toBuffer();
   }
   layers.push({input,left:box.left,top:box.top});
  }
