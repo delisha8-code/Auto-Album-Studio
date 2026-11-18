@@ -25,3 +25,17 @@ test('reject impossible counts without modifying existing sheets',()=>{
  assert.throws(()=>reflowFromSheet(original,photos.slice(0,8),settings,0,5,5),/Not enough remaining/);
  assert.equal(original[0].items.length,8);
 });
+
+test('automatic sheet mode follows a manually configured spread',async()=>{
+ const {autoReflowFromSheet}=await import('../src/sheet-editor.js');
+ const original=generateAlbum(photos,settings,6);
+ const manual=reflowFromSheet(original,photos,settings,1,4,3);
+ const automatic=autoReflowFromSheet(manual,photos,settings,2);
+ assert.deepEqual(automatic[0],manual[0]);
+ assert.deepEqual(automatic[1],manual[1]);
+ assert.equal(automatic[1].layoutMode,'manual');
+ assert.equal(automatic[2].layoutMode,'auto');
+ const ids=automatic.flatMap(s=>s.items.map(i=>i.photoId));
+ assert.equal(ids.length,48);
+ assert.equal(new Set(ids).size,48);
+});
