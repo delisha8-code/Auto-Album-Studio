@@ -11,6 +11,7 @@ function cropValues(item){
  const c=item.crop||{};
  return {zoom:Number.isFinite(c.zoom)?Math.max(1,Math.min(3,c.zoom)):1,x:Number.isFinite(c.x)?Math.max(0,Math.min(100,c.x)):50,y:Number.isFinite(c.y)?Math.max(0,Math.min(100,c.y)):50,fit:c.fit==='contain'?'contain':'cover'};
 }
+function borderFor(sheet,dpi=300){const b=sheet?.border||{};const width=Number(b.width);return {width:Number.isFinite(width)?Math.max(0,Math.min(60,Math.round(width*dpi/300))):0,color:/^#[0-9a-fA-F]{6}$/.test(b.color||'')?b.color:'#ffffff'};}
 function slotBounds(slot,width,height){
  if(!slot||![slot.x,slot.y,slot.w,slot.h].every(Number.isFinite)||slot.w<=0||slot.h<=0||slot.x<0||slot.y<0||slot.x+slot.w>1.00001||slot.y+slot.h>1.00001)throw Error('Invalid sheet slot geometry');
  const left=Math.round(slot.x*width),top=Math.round(slot.y*height);
@@ -46,7 +47,9 @@ async function renderSheet(sheet,photos,settings,options={}){
     .composite([{input:small,left:Math.round(Math.max(0,box.width-rw)*x/100),top:Math.round(Math.max(0,box.height-rh)*y/100)}]).png().toBuffer();
   }
   layers.push({input,left:box.left,top:box.top});
+  const border=borderFor(sheet,options.dpi||300);
+  if(border.width>0){const bw=Math.min(border.width,Math.floor(box.width/2),Math.floor(box.height/2));if(bw>0){const overlay=Buffer.from(`<svg width="${box.width}" height="${box.height}"><rect x="${bw/2}" y="${bw/2}" width="${box.width-bw}" height="${box.height-bw}" fill="none" stroke="${border.color}" stroke-width="${bw}"/></svg>`);layers.push({input:overlay,left:box.left,top:box.top})}}
  }
  return sharp({create:{width,height,channels:3,background:'#ffffff'}}).composite(layers).jpeg({quality:92,mozjpeg:true}).withMetadata({density:options.dpi||300}).toBuffer();
 }
-module.exports={dimensions,slotBounds,cropValues,renderSheet};
+module.exports={dimensions,slotBounds,cropValues,borderFor,renderSheet};
