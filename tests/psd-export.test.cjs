@@ -23,7 +23,7 @@ test('creates layered PSD with correct header and layer count',async()=>{
   assert.equal(psd.readUInt16BE(22),8);
   assert.equal(psd.readUInt16BE(24),3);
   const layerInfoOffset=26+4+4+4+4;
-  assert.equal(psd.readInt16BE(layerInfoOffset),1);
+  assert.equal(psd.readInt16BE(layerInfoOffset),2);
   assert.ok(psd.includes(Buffer.from('Test Photo')));
   const inspected=inspectPsd(psd);
   assert.equal(inspected.layerCount,2);
