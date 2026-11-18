@@ -61,3 +61,17 @@ test('multi-sheet albums alternate grid and hero compositions',()=>{
  assert.equal(sheets.flatMap(s=>s.items).length,32);
  assert.ok(sheets[1].items.some(i=>i.slot.w>.25),'second sheet should have a large hero slot');
 });
+
+test('global photo assignment beats greedy placement on competing slots',async()=>{
+ const {matchPhotosToSlots}=await import('../src/layout.js');
+ const slots=[{x:0,y:0,w:0.5,h:1},{x:0.5,y:0,w:0.25,h:1}];
+ const photos=[{id:'flexible',width:1300,height:1000},{id:'wide',width:2000,height:1000}];
+ const result=matchPhotosToSlots(photos,slots,{width:12,height:36});
+ assert.deepEqual(result.map(i=>i.photoId),['wide','flexible']);
+});
+test('photo assignment remains deterministic for identical aspect ratios',async()=>{
+ const {matchPhotosToSlots}=await import('../src/layout.js');
+ const photos=Array.from({length:8},(_,i)=>({id:'p'+i,width:1000,height:1000}));
+ const slots=templateSlots(TEMPLATES.find(t=>t.capacity===8),settings);
+ assert.deepEqual(matchPhotosToSlots(photos,slots,settings),matchPhotosToSlots(photos,slots,settings));
+});
