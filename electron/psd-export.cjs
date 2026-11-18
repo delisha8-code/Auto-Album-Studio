@@ -25,11 +25,12 @@ async function makeLayer(item,photo,canvas,border){
  if(!photo||!path.isAbsolute(photo.path||''))throw Error('Missing photo for PSD layer');
  const box=slotBounds(item.slot,canvas.width,canvas.height);
  const meta=await sharp(photo.path).metadata();
+ const {zoom,x,y,fit,rotation,flipH,flipV}=cropValues(item);
  const rotated=[5,6,7,8].includes(meta.orientation);
  const nativeW=rotated?meta.height:meta.width,nativeH=rotated?meta.width:meta.height;
  const sw=rotation%180?nativeH:nativeW,sh=rotation%180?nativeW:nativeH;
  if(!sw||!sh)throw Error('Invalid source photo');
- const {zoom,x,y,fit,rotation,flipH,flipV}=cropValues(item);
+
  const scale=(fit==='contain'?Math.min(box.width/sw,box.height/sh):Math.max(box.width/sw,box.height/sh))*zoom;
  const rw=Math.max(1,Math.ceil(sw*scale)),rh=Math.max(1,Math.ceil(sh*scale));
  const left=Math.round((rw-box.width)*x/100),top=Math.round((rh-box.height)*y/100);
