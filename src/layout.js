@@ -29,14 +29,14 @@ export function templateSlots(template,settings,counts=null,style='grid'){
  const inset=(value,fallback,dimension)=>{const v=value==null?fallback:Number(value);if(!Number.isFinite(v)||v<0||v>=dimension/2)throw Error('Invalid page margin');return v/dimension};
  const padL=inset(margins.left,s.bleed,long),padR=inset(margins.right,s.bleed,long);
  const padT=inset(margins.top,s.bleed,short),padB=inset(margins.bottom,s.bleed,short);
- const g=s.gutter/long,half=(1-padL-padR-g)/2;
+ const g=s.gutter/long,leftWidth=.5-g/2-padL,rightStart=.5+g/2,rightWidth=.5-g/2-padR;
  const padY=padT,pageHeight=1-padT-padB;
- if(half<=0||pageHeight<=0)throw Error('Not enough room for both pages');
+ if(leftWidth<=0||rightWidth<=0||pageHeight<=0)throw Error('Not enough room for both pages');
  const left=counts?counts.left:template.left,right=counts?counts.right:template.right;
  if(!Number.isInteger(left)||!Number.isInteger(right)||left<0||right<0||left+right<1)throw Error('Invalid photo counts');
  // Even a single-photo sheet must never span the binding/center fold.
- const make=(n,x,side)=>style==='hero'?heroGrid(n,x,padY,half,pageHeight,side==='right'):grid(n,x,padY,half,pageHeight);
- return [...make(left,padL,'left'),...make(right,padL+half+g,'right')].map(roundSlot);
+ const make=(n,x,w,side)=>style==='hero'?heroGrid(n,x,padY,w,pageHeight,side==='right'):grid(n,x,padY,w,pageHeight);
+ return [...make(left,padL,leftWidth,'left'),...make(right,rightStart,rightWidth,'right')].map(roundSlot);
 }
 function roundSlot(slot){return Object.fromEntries(Object.entries(slot).map(([k,v])=>[k,Number(v.toFixed(6))]))}
 // Match photo aspect ratios to slots while keeping each sheet's photo group intact.
