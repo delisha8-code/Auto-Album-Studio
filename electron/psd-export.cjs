@@ -26,13 +26,14 @@ async function makeLayer(item,photo,canvas,border){
  const box=slotBounds(item.slot,canvas.width,canvas.height);
  const meta=await sharp(photo.path).metadata();
  const rotated=[5,6,7,8].includes(meta.orientation);
- const sw=rotated?meta.height:meta.width,sh=rotated?meta.width:meta.height;
+ const nativeW=rotated?meta.height:meta.width,nativeH=rotated?meta.width:meta.height;
+ const sw=rotation%180?nativeH:nativeW,sh=rotation%180?nativeW:nativeH;
  if(!sw||!sh)throw Error('Invalid source photo');
- const {zoom,x,y,fit}=cropValues(item);
+ const {zoom,x,y,fit,rotation,flipH,flipV}=cropValues(item);
  const scale=(fit==='contain'?Math.min(box.width/sw,box.height/sh):Math.max(box.width/sw,box.height/sh))*zoom;
  const rw=Math.max(1,Math.ceil(sw*scale)),rh=Math.max(1,Math.ceil(sh*scale));
  const left=Math.round((rw-box.width)*x/100),top=Math.round((rh-box.height)*y/100);
- let pipeline=sharp(photo.path).rotate().resize(rw,rh,{fit:'fill'});
+ let pipeline=sharp(photo.path).rotate().rotate(rotation).resize(rw,rh,{fit:'fill'}).flop(flipH).flip(flipV);
  let image;
  if(rw>=box.width&&rh>=box.height){
   image=await pipeline.extract({left,top,width:box.width,height:box.height}).png().toBuffer();
