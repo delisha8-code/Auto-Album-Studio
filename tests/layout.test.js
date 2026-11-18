@@ -98,3 +98,14 @@ test('independent four-sided margins constrain all slots',()=>{
 test('invalid negative custom margins are rejected',()=>{
  assert.throws(()=>templateSlots({left:2,right:2},{width:12,height:36,bleed:.1,gutter:1,margins:{top:-1}}),/Invalid page margin/);
 });
+
+test('asymmetric left and right margins keep the binding centered',()=>{
+ const settings={width:12,height:36,bleed:.1,gutter:1,margins:{left:1,right:2,top:.5,bottom:.5}};
+ const slots=templateSlots({left:4,right:3},settings);
+ const gapHalf=(1/36)/2;
+ assert.equal(slots.length,7);
+ assert.ok(slots.slice(0,4).every(s=>s.x+s.w<=.5-gapHalf+0.000002));
+ assert.ok(slots.slice(4).every(s=>s.x>=.5+gapHalf-0.000002));
+ assert.ok(slots.slice(0,4).every(s=>s.x>=1/36-0.000002));
+ assert.ok(slots.slice(4).every(s=>s.x+s.w<=1-2/36+0.000002));
+});
