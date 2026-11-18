@@ -26,8 +26,10 @@ test('creates layered PSD with correct header and layer count',async()=>{
   assert.equal(psd.readInt16BE(layerInfoOffset),1);
   assert.ok(psd.includes(Buffer.from('Test Photo')));
   const inspected=inspectPsd(psd);
-  assert.equal(inspected.layerCount,1);
+  assert.equal(inspected.layerCount,2);
   assert.equal(inspected.layers[0].name,'Test Photo');
+  assert.equal(inspected.layers[1].name,'Album Background');
+  assert.deepEqual(inspected.layers[1].channels.map(c=>c.id),[0,1,2,-1]);
   assert.deepEqual(inspected.layers[0].channels.map(c=>c.id),[0,1,2,-1]);
  }finally{await fs.rm(folder,{recursive:true,force:true})}
 });
@@ -40,7 +42,7 @@ test('independent inspector rejects truncated PSD channel bytes',async()=>{
   await sharp({create:{width:8,height:8,channels:3,background:'#00ff00'}}).png().toFile(file);
   const sheet={items:[{photoId:'p',slot:{x:0,y:0,w:1,h:1}}]};
   const psd=await buildLayeredPsd(sheet,[{id:'p',path:file,name:'Green'}],{width:1,height:1},{dpi:8});
-  assert.equal(inspectPsd(psd).layerCount,1);
+  assert.equal(inspectPsd(psd).layerCount,2);
   assert.throws(()=>inspectPsd(psd.subarray(0,psd.length-1)),/Invalid merged image length/);
  }finally{await fs.rm(folder,{recursive:true,force:true})}
 });
@@ -58,7 +60,7 @@ test('PSD inspector rejects invalid layer channel counts and identifiers',async(
   const file=path.join(folder,'photo.png');
   await sharp({create:{width:8,height:8,channels:3,background:'#224466'}}).png().toFile(file);
   const psd=await buildLayeredPsd({items:[{photoId:'p',slot:{x:0,y:0,w:1,h:1}}]},[{id:'p',path:file,name:'Check'}],{width:1,height:1},{dpi:8});
-  assert.equal(inspectPsd(psd).layerCount,1);
+  assert.equal(inspectPsd(psd).layerCount,2);
   const layerStart=26+4+4+4+4; // PSD header, color data, resources, layer section, layer-info size
   const invalidCount=Buffer.from(psd);
   invalidCount.writeUInt16BE(5,layerStart+18);
@@ -74,4 +76,18 @@ test('PSD inspector rejects invalid layer channel counts and identifiers',async(
 
 test('empty PSD sheets are rejected with a clear message',async()=>{
  await assert.rejects(buildLayeredPsd({items:[]},[],{width:1,height:1},{dpi:10}),/without photo layers/);
+});
+
+test('floral or imported backgrounds remain separate editable PSD layers',async()=>{
+ const folder=await fs.mkdtemp(path.join(os.tmpdir(),'aas-psd-background-'));
+ try{
+  const file=path.join(folder,'p.png');
+  await sharp({create:{width:20,height:20,channels:3,background:'#0044aa'}}).png().toFile(file);
+  const sheet={background:{preset:'rose',opacity:.75},items:[{photoId:'p',slot:{x:.1,y:.1,w:.3,h:.4}}]};
+  const psd=await buildLayeredPsd(sheet,[{id:'p',path:file,name:'Wedding'}],{width:2,height:4},{dpi:10});
+  const info=inspectPsd(psd);
+  assert.equal(info.layerCount,2);
+  assert.deepEqual(info.layers.map(l=>l.name),['Wedding','Album Background']);
+  assert.ok(psd.length>1000);
+ }finally{await fs.rm(folder,{recursive:true,force:true})}
 });
