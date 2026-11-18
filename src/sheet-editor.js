@@ -25,42 +25,57 @@ export function replaceSheetPhoto(sheets,photos,sheetIndex,itemIndex,photoId){
  return sheets.map((sheet,si)=>si!==sheetIndex?sheet:{...sheet,items:sheet.items.map((item,ii)=>ii===itemIndex?{...item,photoId}:item)});
 }
 
-/**
- * Change one spread's left/right photo counts and reflow every following sheet.
- * Previous sheets remain untouched; no photo is duplicated or silently discarded.
- */
-export function reflowFromSheet(sheets,photos,settings,sheetIndex,left,right){
- if(!Array.isArray(sheets)||!Array.isArray(photos)||!Number.isInteger(sheetIndex)||sheetIndex<0||sheetIndex>=sheets.length)throw Error('Invalid sheet');
- if(!Number.isInteger(left)||!Number.isInteger(right)||left<1||right<1||left>10||right>10)throw Error('Each page requires 1–10 photos');
- const prefix=sheets.slice(0,sheetIndex);
- const used=new Set(prefix.flatMap(s=>s.items.map(i=>i.photoId)));
- const pool=sheets.slice(sheetIndex).flatMap(s=>s.items.map(i=>photos.find(p=>p.id===i.photoId))).filter(p=>p&&!used.has(p.id));
- const unique=[...new Map(pool.map(p=>[p.id,p])).values()];
- const count=left+right;
- if(unique.length<count)throw Error('Not enough remaining photographs for this grid');
- const template={left,right,capacity:count,id:'manual-'+left+'-'+right};
- const slots=templateSlots(template,settings,{left,right});
- const current={...sheets[sheetIndex],layoutMode:'manual',templateId:template.id,items:matchPhotosToSlots(unique.slice(0,count),slots,settings)};
- const rest=unique.slice(count);
- const next=rest.length?generateAlbum(rest,settings):[];
- const usedIds=new Set([...prefix,current,...next].flatMap(s=>s.items.map(i=>i.photoId)));
- if(usedIds.size!==new Set([...prefix.flatMap(s=>s.items.map(i=>i.photoId)),...unique.map(p=>p.id)]).size)throw Error('Reflow lost photographs');
- return [...prefix,current,...next.map((s,i)=>({...s,id:'sheet-'+(sheetIndex+i+2)}))];
-}
 
-/** Rebuild only the selected spread automatically; earlier spreads remain fixed. */
-export function autoReflowFromSheet(sheets,photos,settings,sheetIndex){
+/** Reflow a selected spread without erasing later manual layout choices. */
+function reflow(sheets,photos,settings,sheetIndex,mode,left=0,right=0){
  if(!Array.isArray(sheets)||!Array.isArray(photos)||!Number.isInteger(sheetIndex)||sheetIndex<0||sheetIndex>=sheets.length)throw Error('Invalid sheet');
+ if(mode==='manual'&&(!Number.isInteger(left)||!Number.isInteger(right)||left<1||right<1||left>10||right>10))throw Error('Each page requires 1–10 photos');
  const prefix=sheets.slice(0,sheetIndex);
- const used=new Set(prefix.flatMap(s=>s.items.map(i=>i.photoId)));
- const photoMap=new Map(photos.map(p=>[p.id,p]));
- const pool=[...new Set(sheets.slice(sheetIndex).flatMap(s=>s.items.map(i=>i.photoId)))].filter(id=>!used.has(id)).map(id=>photoMap.get(id)).filter(Boolean);
+ const ids=new Set(prefix.flatMap(s=>s.items.map(i=>i.photoId)));
+ const map=new Map(photos.map(p=>[p.id,p]));
+ const pool=[...new Set(sheets.slice(sheetIndex).flatMap(s=>s.items.map(i=>i.photoId)))].filter(id=>!ids.has(id)).map(id=>map.get(id)).filter(Boolean);
  if(!pool.length)throw Error('No remaining photographs');
- const count=Math.min(8,pool.length);
- const template=TEMPLATES.filter(t=>t.capacity>=count).sort((a,b)=>a.capacity-b.capacity)[0];
- const left=count===1?1:Math.max(1,Math.min(count-1,Math.round(count*template.left/template.capacity)));
- const slots=templateSlots(template,settings,{left,right:count-left});
- const current={...sheets[sheetIndex],layoutMode:'auto',templateId:template.id,items:matchPhotosToSlots(pool.slice(0,count),slots,settings)};
- const next=pool.length>count?generateAlbum(pool.slice(count),settings):[];
- return [...prefix,current,...next.map((s,i)=>({...s,layoutMode:'auto',id:'sheet-'+(sheetIndex+i+2)}))];
+ let cursor=0;const result=[...prefix];
+ for(let i=sheetIndex;i<sheets.length&&cursor<pool.length;i++){
+  const old=sheets[i],requested=i===sheetIndex?mode:(old.layoutMode||'auto');
+  let nLeft,nRight,template,style='grid';
+  if(requested==='manual'){
+   if(i===sheetIndex){nLeft=left;nRight=right}
+   else {
+    const parts=/^manual-(\d+)-(\d+)$/.exec(old.templateId||'');
+    if(!parts){nLeft=old.leftCount;nRight=old.rightCount}
+    else{nLeft=Number(parts[1]);nRight=Number(parts[2])}
+   }
+   if(!Number.isInteger(nLeft)||!Number.isInteger(nRight)||nLeft<1||nRight<1||nLeft>10||nRight>10)throw Error('Invalid saved manual grid');
+   if(cursor+nLeft+nRight>pool.length){
+    if(i===sheetIndex)throw Error('Not enough remaining photographs for this grid');
+    throw Error('Not enough photos to preserve manual grid on sheet '+(i+1));
+   }
+   template={id:'manual-'+nLeft+'-'+nRight,left:nLeft,right:nRight};
+  }else{
+   const remaining=pool.length-cursor;
+   const laterManual=sheets.slice(i+1).filter(s=>s.layoutMode==='manual').reduce((sum,s)=>{
+    const m=/^manual-(\d+)-(\d+)$/.exec(s.templateId||'');
+    return sum+(m?Number(m[1])+Number(m[2]):s.items.length);
+   },0);
+   const available=remaining-laterManual;
+   if(available<1)continue;
+   const count=Math.min(8,available);
+   template=TEMPLATES.filter(t=>t.capacity>=count).sort((a,b)=>a.capacity-b.capacity)[0];
+   nLeft=count===1?1:Math.max(1,Math.min(count-1,Math.round(count*template.left/template.capacity)));
+   nRight=count-nLeft;
+  }
+  const count=nLeft+nRight,slots=templateSlots(template,settings,{left:nLeft,right:nRight},style);
+  result.push({...old,id:'sheet-'+(result.length+1),layoutMode:requested,templateId:template.id,leftCount:nLeft,rightCount:nRight,items:matchPhotosToSlots(pool.slice(cursor,cursor+count),slots,settings)});
+  cursor+=count;
+ }
+ if(cursor<pool.length){
+  const next=generateAlbum(pool.slice(cursor),settings);
+  result.push(...next.map(s=>({...s,id:'sheet-'+(result.length+1),layoutMode:'auto'})));
+ }
+ const all=result.flatMap(s=>s.items.map(i=>i.photoId));
+ if(all.length!==new Set(all).size||all.length!==ids.size+pool.length)throw Error('Reflow photo integrity check failed');
+ return result;
 }
+export function reflowFromSheet(sheets,photos,settings,sheetIndex,left,right){return reflow(sheets,photos,settings,sheetIndex,'manual',left,right)}
+export function autoReflowFromSheet(sheets,photos,settings,sheetIndex){return reflow(sheets,photos,settings,sheetIndex,'auto')}
