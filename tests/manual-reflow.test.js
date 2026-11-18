@@ -39,3 +39,21 @@ test('automatic sheet mode follows a manually configured spread',async()=>{
  assert.equal(ids.length,48);
  assert.equal(new Set(ids).size,48);
 });
+
+test('editing an earlier sheet preserves a later manual grid',()=>{
+ const original=generateAlbum(photos,settings,6);
+ const later=reflowFromSheet(original,photos,settings,3,2,5);
+ const edited=reflowFromSheet(later,photos,settings,1,4,3);
+ const saved=edited.find(s=>s.layoutMode==='manual'&&s.templateId==='manual-2-5');
+ assert.ok(saved,'later manual grid must survive upstream edits');
+ assert.equal(saved.items.length,7);
+ const ids=edited.flatMap(s=>s.items.map(i=>i.photoId));
+ assert.equal(ids.length,photos.length);
+ assert.equal(new Set(ids).size,photos.length);
+});
+test('insufficient photos for later manual grid fails without mutation',()=>{
+ const original=generateAlbum(photos.slice(0,16),settings,2);
+ const later=reflowFromSheet(original,photos.slice(0,16),settings,1,4,4);
+ assert.throws(()=>reflowFromSheet(later,photos.slice(0,16),settings,0,8,8),/Not enough photos/);
+ assert.equal(later[1].templateId,'manual-4-4');
+});
